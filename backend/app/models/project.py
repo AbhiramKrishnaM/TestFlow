@@ -1,7 +1,15 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Table
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.db.database import Base
+
+# Many-to-many relationship table for project members
+project_members = Table(
+    "project_members",
+    Base.metadata,
+    Column("user_id", Integer, ForeignKey("users.id")),
+    Column("project_id", Integer, ForeignKey("projects.id")),
+)
 
 class Project(Base):
     __tablename__ = "projects"
@@ -14,5 +22,6 @@ class Project(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
-    owner = relationship("User", back_populates="projects")
+    owner = relationship("User", foreign_keys=[owner_id], back_populates="owned_projects")
+    members = relationship("User", secondary=project_members, backref="member_projects")
     test_cases = relationship("TestCase", back_populates="project", cascade="all, delete-orphan") 

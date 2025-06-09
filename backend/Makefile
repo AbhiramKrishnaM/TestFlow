@@ -42,6 +42,21 @@ migrations:
 migrate:
 	alembic upgrade head
 
+.PHONY: init-db
+init-db:
+	$(PYTHON) init_db.py
+
+.PHONY: create-db
+create-db:
+	psql -U postgres -c "CREATE DATABASE testflow"
+
+.PHONY: drop-db
+drop-db:
+	psql -U postgres -c "DROP DATABASE IF EXISTS testflow"
+
+.PHONY: reset-db
+reset-db: drop-db create-db migrate init-db
+
 # Help command
 .PHONY: help
 help:
@@ -54,6 +69,10 @@ help:
 	@echo "  clean        - Clean up temporary files"
 	@echo "  migrations   - Generate database migrations (use with message='Description')"
 	@echo "  migrate      - Apply database migrations"
+	@echo "  init-db      - Initialize database with default data"
+	@echo "  create-db    - Create database"
+	@echo "  drop-db      - Drop database"
+	@echo "  reset-db     - Reset database (drop, create, migrate, init)"
 	@echo "  help         - Show this help message"
 
 # Default target

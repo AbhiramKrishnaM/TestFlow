@@ -1,28 +1,47 @@
 import React from "react";
-import { Routes, Route } from "react-router-dom";
-import "./App.css";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "./contexts/AuthContext";
+import { ProtectedRoute, GuestRoute } from "./routes/AuthRoutes";
 
-// Import your pages here (to be created later)
-// import Dashboard from './pages/Dashboard';
-// import Login from './pages/Login';
-// import Register from './pages/Register';
-// import ProjectDetails from './pages/ProjectDetails';
-// import TestFlowEditor from './pages/TestFlowEditor';
+// Layout components
+import { DashboardLayout } from "./layouts/DashboardLayout";
 
-const App: React.FC = () => {
+// Auth pages
+import { Login } from "./pages/auth/Login";
+import { Register } from "./pages/auth/Register";
+
+// Dashboard pages
+import { Dashboard } from "./pages/dashboard/Dashboard";
+import { Projects } from "./pages/projects/Projects";
+import { TestCases } from "./pages/testcases/TestCases";
+
+function App() {
   return (
-    <div className="App">
-      <Routes>
-        <Route path="/" element={<div>Welcome to TestTrack</div>} />
-        {/* Add your routes here */}
-        {/* <Route path="/login" element={<Login />} /> */}
-        {/* <Route path="/register" element={<Register />} /> */}
-        {/* <Route path="/dashboard" element={<Dashboard />} /> */}
-        {/* <Route path="/projects/:id" element={<ProjectDetails />} /> */}
-        {/* <Route path="/test-flow/:id" element={<TestFlowEditor />} /> */}
-      </Routes>
-    </div>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Auth Routes */}
+          <Route element={<GuestRoute />}>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+          </Route>
+
+          {/* Protected Routes */}
+          <Route element={<ProtectedRoute />}>
+            <Route element={<DashboardLayout />}>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/projects" element={<Projects />} />
+              <Route path="/testcases" element={<TestCases />} />
+            </Route>
+          </Route>
+
+          {/* Redirect to login */}
+          <Route path="/" element={<Navigate to="/login" />} />
+          <Route path="*" element={<Navigate to="/login" />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
-};
+}
 
 export default App;
