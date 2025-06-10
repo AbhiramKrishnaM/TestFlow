@@ -1,4 +1,4 @@
-# TestTrack
+# TestFlow
 
 A comprehensive test case management system with visual test flow editor, AI test case generation, and advanced reporting.
 

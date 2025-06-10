@@ -5,7 +5,7 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
-import { authService } from "@/services/auth.service";
+import { authService } from "../services/auth.service";
 
 // User type from the service
 interface User {
