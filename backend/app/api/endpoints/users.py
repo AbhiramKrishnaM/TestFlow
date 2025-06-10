@@ -129,7 +129,6 @@ def create_user(
         full_name=user_in.full_name,
         hashed_password=get_password_hash(user_in.password),
         is_active=user_in.is_active,
-        is_superuser=False,
     )
     db.add(user)
     db.commit()

@@ -78,7 +78,6 @@ def register_user(
         full_name=user_in.full_name,
         hashed_password=security.get_password_hash(user_in.password),
         is_active=True,
-        is_superuser=False,
     )
     db.add(user)
     db.commit()

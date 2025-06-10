@@ -14,7 +14,6 @@ interface User {
   username: string;
   full_name: string;
   is_active: boolean;
-  is_superuser: boolean;
 }
 
 // Auth context state
