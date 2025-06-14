@@ -5,8 +5,10 @@ import React, {
   useEffect,
   ReactNode,
   useCallback,
+  useRef,
 } from "react";
 import { authService } from "../services/auth.service";
+import { projectService } from "../services/project.service";
 import { useNavigate } from "react-router-dom";
 
 // User type from the service
@@ -57,12 +59,17 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const authCheckRef = useRef(false);
 
   // Check if user is authenticated on mount
   useEffect(() => {
+    // Prevent duplicate API calls
+    if (authCheckRef.current) return;
+
     const checkAuth = async () => {
       if (authService.isAuthenticated()) {
         try {
+          authCheckRef.current = true;
           const user = await authService.fetchUserProfile();
           setUser(user);
         } catch (error) {
@@ -82,6 +89,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const user = await authService.login(username, password);
       setUser(user);
+      authCheckRef.current = true;
       return user;
     } finally {
       setIsLoading(false);
@@ -92,6 +100,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = useCallback(() => {
     authService.logout();
     setUser(null);
+    authCheckRef.current = false;
+
+    // Clear project cache on logout
+    projectService.clearCache();
   }, []);
 
   // Register function
