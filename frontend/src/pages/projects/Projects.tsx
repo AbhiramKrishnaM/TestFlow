@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Typography,
   Card,
@@ -11,6 +12,7 @@ import { CircularProgress } from "../../components/MUIComponents";
 import { AddProjectModal } from "./AddProjectModal";
 
 export function Projects() {
+  const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -51,6 +53,10 @@ export function Projects() {
 
   const openModal = () => setIsModalOpen(true);
   const closeModal = () => setIsModalOpen(false);
+
+  const navigateToProject = (projectId: number) => {
+    navigate(`/projects/${projectId}`);
+  };
 
   // If loading, show a loading spinner
   if (loading) {
@@ -155,14 +161,25 @@ export function Projects() {
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {projects.map((project) => (
-          <Card key={project.id} className="hover:shadow-lg transition-shadow">
+          <Card
+            key={project.id}
+            className="hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => navigateToProject(project.id)}
+          >
             <CardBody>
               <Typography variant="h5">{project.name}</Typography>
               <Typography variant="small" color="gray" className="mb-4">
                 {project.description || "No description"}
               </Typography>
               <div className="flex justify-end">
-                <Button variant="text" size="sm">
+                <Button
+                  variant="text"
+                  size="sm"
+                  onClick={(e: React.MouseEvent) => {
+                    e.stopPropagation();
+                    navigateToProject(project.id);
+                  }}
+                >
                   View Details
                 </Button>
               </div>

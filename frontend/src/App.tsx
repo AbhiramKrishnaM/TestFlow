@@ -18,6 +18,7 @@ import { Register } from "./pages/auth/Register";
 // Dashboard pages
 import { Dashboard } from "./pages/dashboard/Dashboard";
 import { Projects } from "./pages/projects/Projects";
+import { ProjectDetail } from "./pages/projects/ProjectDetail";
 import { TestCases } from "./pages/testcases/TestCases";
 
 function App() {
@@ -39,6 +40,7 @@ function App() {
                 <Route element={<DashboardLayout />}>
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/projects" element={<Projects />} />
+                  <Route path="/projects/:id" element={<ProjectDetail />} />
                   <Route path="/testcases" element={<TestCases />} />
                 </Route>
               </Route>

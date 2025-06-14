@@ -1,6 +1,7 @@
 from typing import Optional, List
 from pydantic import BaseModel
 from datetime import datetime
+from app.schemas.user import UserBase
 
 # Shared properties
 class ProjectBase(BaseModel):
@@ -31,4 +32,8 @@ class Project(ProjectInDBBase):
 
 # Project with members
 class ProjectWithMembers(Project):
-    member_ids: List[int] = [] 
+    members: List[UserBase] = []
+    
+# Project with full details
+class ProjectDetail(ProjectWithMembers):
+    pass 

@@ -19,6 +19,8 @@ function PageTitle() {
   let title = "Dashboard";
   if (path === "/projects") {
     title = "Projects";
+  } else if (path.match(/^\/projects\/\d+$/)) {
+    title = "Project Details";
   } else if (path === "/testcases") {
     title = "Test Cases";
   }
