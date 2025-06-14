@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Outlet, Link, useNavigate } from "react-router-dom";
+import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import {
   Navbar,
@@ -8,9 +8,27 @@ import {
   IconButton,
   Drawer,
   List,
-  ListItem,
-  ListItemPrefix,
 } from "../components/MaterialTailwindFix";
+import { NavLink } from "../components/ui/NavLink";
+
+// Title component that updates based on the current route
+function PageTitle() {
+  const location = useLocation();
+  const path = location.pathname;
+
+  let title = "Dashboard";
+  if (path === "/projects") {
+    title = "Projects";
+  } else if (path === "/testcases") {
+    title = "Test Cases";
+  }
+
+  return (
+    <Typography variant="h4" className="font-bold text-gray-800 mb-6">
+      {title}
+    </Typography>
+  );
+}
 
 export function DashboardLayout() {
   const { user, logout } = useAuth();
@@ -115,7 +133,8 @@ export function DashboardLayout() {
         </Drawer>
 
         {/* Main content */}
-        <main className="flex-1 overflow-auto p-4">
+        <main className="flex-1 overflow-auto p-6">
+          <PageTitle />
           <Outlet />
         </main>
       </div>
@@ -127,71 +146,77 @@ export function DashboardLayout() {
 function SidebarContent({ onClick }: { onClick?: () => void }) {
   return (
     <List>
-      <Link to="/dashboard" onClick={onClick}>
-        <ListItem>
-          <ListItemPrefix>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              className="h-5 w-5"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-              />
-            </svg>
-          </ListItemPrefix>
-          Dashboard
-        </ListItem>
-      </Link>
+      <NavLink
+        to="/dashboard"
+        onClick={onClick}
+        exact={true}
+        icon={
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            className="h-5 w-5"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+            />
+          </svg>
+        }
+      >
+        Dashboard
+      </NavLink>
 
-      <Link to="/projects" onClick={onClick}>
-        <ListItem>
-          <ListItemPrefix>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              className="h-5 w-5"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-              />
-            </svg>
-          </ListItemPrefix>
-          Projects
-        </ListItem>
-      </Link>
+      <NavLink
+        to="/projects"
+        onClick={onClick}
+        exact={true}
+        icon={
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            className="h-5 w-5"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+            />
+          </svg>
+        }
+      >
+        Projects
+      </NavLink>
 
-      <Link to="/testcases" onClick={onClick}>
-        <ListItem>
-          <ListItemPrefix>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              className="h-5 w-5"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-              />
-            </svg>
-          </ListItemPrefix>
-          Test Cases
-        </ListItem>
-      </Link>
+      <NavLink
+        to="/testcases"
+        onClick={onClick}
+        exact={true}
+        icon={
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            className="h-5 w-5"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+            />
+          </svg>
+        }
+      >
+        Test Cases
+      </NavLink>
     </List>
   );
 }
