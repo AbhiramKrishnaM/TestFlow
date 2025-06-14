@@ -23,14 +23,14 @@ interface ProjectContextType {
   projects: Project[];
   setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
   loading: boolean;
-  fetchProjects: () => Promise<void>;
+  fetchProjects: (force?: boolean) => Promise<void>;
 }
 
 export const ProjectContext = createContext<ProjectContextType>({
   projects: [],
   setProjects: () => {},
   loading: true,
-  fetchProjects: async () => {},
+  fetchProjects: async (force?: boolean) => {},
 });
 
 export const useProjects = () => useContext(ProjectContext);
@@ -59,36 +59,47 @@ function PageTitle() {
 export function DashboardLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const projectsLoadedRef = useRef(false);
 
   // Fetch projects on component mount
-  const fetchProjects = async () => {
-    // Skip if already loaded or currently loading
-    if (projectsLoadedRef.current) return;
-
-    setLoading(true);
+  const fetchProjects = async (force = false) => {
     try {
-      projectsLoadedRef.current = true; // Mark as loading before the API call
+      setLoading(true);
       console.log("Fetching projects...");
+      if (force) {
+        // Clear the cache to force a fresh fetch
+        projectService.clearCache();
+      }
       const data = await projectService.getProjects();
       console.log("Projects fetched:", data);
       setProjects(data);
+      projectsLoadedRef.current = true;
     } catch (error) {
       console.error("Error fetching projects:", error);
-      projectsLoadedRef.current = false; // Reset on error
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (user && !projectsLoadedRef.current) {
+    if (user) {
       fetchProjects();
     }
   }, [user]);
+
+  // Refresh projects when navigating to the projects page
+  useEffect(() => {
+    if (
+      location.pathname === "/projects" ||
+      location.pathname === "/dashboard"
+    ) {
+      fetchProjects(true); // Force refresh when navigating to these pages
+    }
+  }, [location.pathname]);
 
   const handleLogout = () => {
     logout();
@@ -205,7 +216,6 @@ export function DashboardLayout() {
 
           {/* Main content */}
           <main className="flex-1 overflow-auto p-6">
-            <PageTitle />
             <Outlet />
           </main>
         </div>

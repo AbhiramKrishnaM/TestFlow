@@ -133,13 +133,8 @@ class ProjectService {
       await axios.delete(`${API_URL}/projects/${id}`);
 
       // Update caches
-      if (this.projectsCache) {
-        this.projectsCache = this.projectsCache.filter((p) => p.id !== id);
-      }
-
-      if (this.projectCache.has(id)) {
-        this.projectCache.delete(id);
-      }
+      this.projectsCache = null; // Force a fresh fetch next time
+      this.projectCache.delete(id);
 
       return true;
     } catch (error) {

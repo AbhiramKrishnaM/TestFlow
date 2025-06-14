@@ -18,11 +18,21 @@ export const NavLink: React.FC<NavLinkProps> = ({
   exact = true,
 }) => {
   const location = useLocation();
+  const path = location.pathname;
 
   // Check if the current path matches the link path
-  const isActive = exact
-    ? location.pathname === to
-    : location.pathname.startsWith(to);
+  let isActive = false;
+
+  if (exact) {
+    isActive = path === to;
+  } else {
+    isActive = path.startsWith(to);
+  }
+
+  // Special case for projects - highlight when on project details page
+  if (to === "/projects" && path.match(/^\/projects\/\d+/)) {
+    isActive = true;
+  }
 
   return (
     <Link to={to} onClick={onClick} className="block">

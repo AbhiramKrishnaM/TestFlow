@@ -18,6 +18,8 @@ import {
 } from "@mui/material";
 import { projectService, Project } from "../../services/project.service";
 import { ProjectMembers } from "./ProjectMembers";
+import { useProjects } from "../../layouts/DashboardLayout";
+import { useSnackbar } from "../../contexts/SnackbarContext";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -52,6 +54,8 @@ export const ProjectDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const projectId = parseInt(id || "0", 10);
+  const { fetchProjects } = useProjects();
+  const { showSnackbar } = useSnackbar();
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
@@ -131,11 +135,14 @@ export const ProjectDetail: React.FC = () => {
     try {
       const success = await projectService.deleteProject(project.id);
       if (success) {
+        await fetchProjects(true);
+        showSnackbar("Project deleted successfully", "success");
         navigate("/projects");
       }
     } catch (err) {
       console.error("Error deleting project:", err);
       setError("Failed to delete project");
+      showSnackbar("Failed to delete project", "error");
     }
   };
 
