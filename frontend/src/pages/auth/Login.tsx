@@ -1,14 +1,27 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
-  Button,
   Card,
   CardBody,
-  CardFooter,
-  Input,
   Typography,
 } from "../../components/MaterialTailwindFix";
 import { authService } from "../../services/auth.service";
+import {
+  TextField,
+  Alert,
+  Box,
+  Divider,
+  Paper,
+  CircularProgress,
+  Button,
+} from "../../components/MUIComponents";
+import { LoadingButton } from "../../components/ui/LoadingButton";
+import { useAuth } from "../../contexts/AuthContext";
+import { useSnackbar } from "../../contexts/SnackbarContext";
+
+interface LocationState {
+  message?: string;
+}
 
 export function Login() {
   const [username, setUsername] = useState("");
@@ -16,20 +29,57 @@ export function Login() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
+  const { showSnackbar } = useSnackbar();
+  const location = useLocation();
+
+  // Get the intended destination from location state, or default to dashboard
+  const from =
+    (location.state as { from?: { pathname: string } })?.from?.pathname ||
+    "/dashboard";
+
+  // Check for messages from other pages (like successful registration)
+  useEffect(() => {
+    const state = location.state as LocationState;
+    if (state?.message) {
+      // Delay showing the snackbar to ensure DOM is ready
+      setTimeout(() => {
+        showSnackbar(state.message as string, "success");
+      }, 300);
+
+      // Clear the message from location state
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location, navigate, showSnackbar]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!username || !password) {
+      setError("Please enter both email and password");
+      return;
+    }
+
     setError("");
     setIsLoading(true);
 
     try {
-      await authService.login(username, password);
-      navigate("/dashboard");
+      await login(username, password);
+
+      // Delay navigation slightly to avoid transition issues
+      setTimeout(() => {
+        navigate(from, { replace: true });
+      }, 100);
     } catch (err: any) {
       setError(
         err.response?.data?.detail ||
           "Login failed. Please check your credentials."
       );
+
+      // Only show snackbar if component is still mounted
+      setTimeout(() => {
+        showSnackbar("Login failed. Please check your credentials.", "error");
+      }, 100);
     } finally {
       setIsLoading(false);
     }
@@ -39,7 +89,7 @@ export function Login() {
     <div className="flex min-h-screen bg-gray-50">
       {/* Right side with login form */}
       <div className="w-full flex items-center justify-center p-8">
-        <div className="w-full max-w-md">
+        <Paper elevation={3} className="w-full max-w-md p-6 rounded-xl">
           <div className="flex justify-between items-center mb-8">
             <div className="flex items-center">
               <div className="flex items-center justify-center w-10 h-10 rounded bg-blue-100">
@@ -97,34 +147,33 @@ export function Login() {
             </button>
           </div>
 
-          <div className="flex items-center gap-3 mb-6">
-            <div className="h-px bg-gray-300 flex-grow"></div>
+          <Box className="flex items-center gap-3 mb-6">
+            <Divider className="h-px bg-gray-300 flex-grow" />
             <Typography variant="small" className="text-gray-500">
               Or continue with email
             </Typography>
-            <div className="h-px bg-gray-300 flex-grow"></div>
-          </div>
+            <Divider className="h-px bg-gray-300 flex-grow" />
+          </Box>
 
           <form onSubmit={handleLogin}>
             {error && (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+              <Alert severity="error" className="mb-4">
                 {error}
-              </div>
+              </Alert>
             )}
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email address
-              </label>
-              <Input
-                size="lg"
+              <TextField
+                label="Email address"
+                variant="outlined"
+                fullWidth
                 placeholder="you@example.com"
                 value={username}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   setUsername(e.target.value)
                 }
-                className="focus:ring-blue-500 focus:border-blue-500 w-full"
                 required
+                margin="normal"
               />
             </div>
 
@@ -140,31 +189,35 @@ export function Login() {
                   Forgot password?
                 </a>
               </div>
-              <Input
+              <TextField
                 type="password"
-                size="lg"
+                label="Password"
+                variant="outlined"
+                fullWidth
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   setPassword(e.target.value)
                 }
-                className="focus:ring-blue-500 focus:border-blue-500 w-full"
                 required
+                margin="normal"
               />
             </div>
 
-            <Button
+            <LoadingButton
               type="submit"
-              size="lg"
-              color="blue"
+              variant="contained"
+              color="primary"
               fullWidth
-              disabled={isLoading}
-              className="bg-blue-600 hover:bg-blue-700 py-3 rounded-lg"
+              loading={isLoading}
+              loadingText="Signing in..."
+              className="py-3 rounded-lg"
+              size="large"
             >
-              {isLoading ? "Signing in..." : "Login"}
-            </Button>
+              Login
+            </LoadingButton>
           </form>
-        </div>
+        </Paper>
       </div>
     </div>
   );

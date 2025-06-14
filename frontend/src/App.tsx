@@ -2,6 +2,11 @@ import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ProtectedRoute, GuestRoute } from "./routes/AuthRoutes";
+import { ThemeProvider } from "@mui/material/styles";
+import CssBaseline from "@mui/material/CssBaseline";
+import theme from "./theme/mui-theme";
+import { SnackbarProvider } from "./contexts/SnackbarContext";
+import { StyledEngineProvider } from "@mui/material/styles";
 
 // Layout components
 import { DashboardLayout } from "./layouts/DashboardLayout";
@@ -17,28 +22,35 @@ import { TestCases } from "./pages/testcases/TestCases";
 
 function App() {
   return (
-    <AuthProvider>
-      <Routes>
-        {/* Auth Routes */}
-        <Route element={<GuestRoute />}>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-        </Route>
+    <StyledEngineProvider injectFirst>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <SnackbarProvider>
+          <AuthProvider>
+            <Routes>
+              {/* Auth Routes */}
+              <Route element={<GuestRoute />}>
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+              </Route>
 
-        {/* Protected Routes */}
-        <Route element={<ProtectedRoute />}>
-          <Route element={<DashboardLayout />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/projects" element={<Projects />} />
-            <Route path="/testcases" element={<TestCases />} />
-          </Route>
-        </Route>
+              {/* Protected Routes */}
+              <Route element={<ProtectedRoute />}>
+                <Route element={<DashboardLayout />}>
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/projects" element={<Projects />} />
+                  <Route path="/testcases" element={<TestCases />} />
+                </Route>
+              </Route>
 
-        {/* Redirect to login */}
-        <Route path="/" element={<Navigate to="/login" />} />
-        <Route path="*" element={<Navigate to="/login" />} />
-      </Routes>
-    </AuthProvider>
+              {/* Redirect to login */}
+              <Route path="/" element={<Navigate to="/login" />} />
+              <Route path="*" element={<Navigate to="/login" />} />
+            </Routes>
+          </AuthProvider>
+        </SnackbarProvider>
+      </ThemeProvider>
+    </StyledEngineProvider>
   );
 }
 

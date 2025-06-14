@@ -4,8 +4,10 @@ import React, {
   useState,
   useEffect,
   ReactNode,
+  useCallback,
 } from "react";
 import { authService } from "../services/auth.service";
+import { useNavigate } from "react-router-dom";
 
 // User type from the service
 interface User {
@@ -21,7 +23,7 @@ interface AuthContextState {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<User>;
   logout: () => void;
   register: (data: RegisterData) => Promise<void>;
 }
@@ -39,7 +41,9 @@ const AuthContext = createContext<AuthContextState>({
   user: null,
   isAuthenticated: false,
   isLoading: true,
-  login: async () => {},
+  login: async () => {
+    throw new Error("Not implemented");
+  },
   logout: () => {},
   register: async () => {},
 });
@@ -78,16 +82,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const user = await authService.login(username, password);
       setUser(user);
+      return user;
     } finally {
       setIsLoading(false);
     }
   };
 
   // Logout function
-  const logout = () => {
+  const logout = useCallback(() => {
     authService.logout();
     setUser(null);
-  };
+  }, []);
 
   // Register function
   const register = async (data: RegisterData) => {

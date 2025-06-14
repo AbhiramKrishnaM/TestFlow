@@ -1,14 +1,21 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  Button,
   Card,
   CardBody,
-  CardFooter,
-  Input,
   Typography,
 } from "../../components/MaterialTailwindFix";
 import { authService } from "../../services/auth.service";
+import {
+  TextField,
+  Alert,
+  Box,
+  Divider,
+  Paper,
+} from "../../components/MUIComponents";
+import { LoadingButton } from "../../components/ui/LoadingButton";
+import { useAuth } from "../../contexts/AuthContext";
+import { useSnackbar } from "../../contexts/SnackbarContext";
 
 export function Register() {
   const [email, setEmail] = useState("");
@@ -19,6 +26,8 @@ export function Register() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { register } = useAuth();
+  const { showSnackbar } = useSnackbar();
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,11 +35,17 @@ export function Register() {
     // Validation
     if (password !== confirmPassword) {
       setError("Passwords do not match");
+      setTimeout(() => {
+        showSnackbar("Passwords do not match", "error");
+      }, 100);
       return;
     }
 
     if (password.length < 8) {
       setError("Password must be at least 8 characters long");
+      setTimeout(() => {
+        showSnackbar("Password must be at least 8 characters long", "error");
+      }, 100);
       return;
     }
 
@@ -38,7 +53,7 @@ export function Register() {
     setIsLoading(true);
 
     try {
-      await authService.register({
+      await register({
         email,
         username,
         password,
@@ -46,13 +61,22 @@ export function Register() {
       });
 
       // Navigate to login page on successful registration
-      navigate("/login", {
-        state: { message: "Registration successful! Please log in." },
-      });
+      // Delay navigation slightly to avoid transition issues
+      setTimeout(() => {
+        navigate("/login", {
+          replace: true,
+          state: { message: "Registration successful! Please log in." },
+        });
+      }, 100);
     } catch (err: any) {
-      setError(
-        err.response?.data?.detail || "Registration failed. Please try again."
-      );
+      const errorMessage =
+        err.response?.data?.detail || "Registration failed. Please try again.";
+      setError(errorMessage);
+
+      // Only show snackbar if component is still mounted
+      setTimeout(() => {
+        showSnackbar(errorMessage, "error");
+      }, 100);
     } finally {
       setIsLoading(false);
     }
@@ -62,7 +86,7 @@ export function Register() {
     <div className="flex min-h-screen bg-gray-50">
       {/* Right side with registration form */}
       <div className="w-full flex items-center justify-center p-8">
-        <div className="w-full max-w-md">
+        <Paper elevation={3} className="w-full max-w-md p-6 rounded-xl">
           <div className="flex justify-between items-center mb-8">
             <div className="flex items-center">
               <div className="flex items-center justify-center w-10 h-10 rounded bg-blue-100">
@@ -120,116 +144,111 @@ export function Register() {
             </button>
           </div>
 
-          <div className="flex items-center gap-3 mb-6">
-            <div className="h-px bg-gray-300 flex-grow"></div>
+          <Box className="flex items-center gap-3 mb-6">
+            <Divider className="h-px bg-gray-300 flex-grow" />
             <Typography variant="small" className="text-gray-500">
               Or continue with email
             </Typography>
-            <div className="h-px bg-gray-300 flex-grow"></div>
-          </div>
+            <Divider className="h-px bg-gray-300 flex-grow" />
+          </Box>
 
           <form onSubmit={handleRegister}>
             {error && (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+              <Alert severity="error" className="mb-4">
                 {error}
-              </div>
+              </Alert>
             )}
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email address
-              </label>
-              <Input
+              <TextField
                 type="email"
-                size="lg"
+                label="Email address"
+                variant="outlined"
+                fullWidth
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   setEmail(e.target.value)
                 }
-                className="focus:ring-blue-500 focus:border-blue-500 w-full"
                 required
+                margin="normal"
               />
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Username
-              </label>
-              <Input
-                size="lg"
+              <TextField
+                label="Username"
+                variant="outlined"
+                fullWidth
                 placeholder="johndoe"
                 value={username}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   setUsername(e.target.value)
                 }
-                className="focus:ring-blue-500 focus:border-blue-500 w-full"
                 required
+                margin="normal"
               />
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Full Name
-              </label>
-              <Input
-                size="lg"
+              <TextField
+                label="Full Name"
+                variant="outlined"
+                fullWidth
                 placeholder="John Doe"
                 value={fullName}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   setFullName(e.target.value)
                 }
-                className="focus:ring-blue-500 focus:border-blue-500 w-full"
+                margin="normal"
               />
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Password
-              </label>
-              <Input
+              <TextField
                 type="password"
-                size="lg"
+                label="Password"
+                variant="outlined"
+                fullWidth
                 placeholder="Create a password"
                 value={password}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   setPassword(e.target.value)
                 }
-                className="focus:ring-blue-500 focus:border-blue-500 w-full"
                 required
+                margin="normal"
+                helperText="Must be at least 8 characters"
               />
-              <p className="mt-1 text-sm text-gray-500">
-                Must be at least 8 characters
-              </p>
             </div>
 
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Confirm Password
-              </label>
-              <Input
+              <TextField
                 type="password"
-                size="lg"
+                label="Confirm Password"
+                variant="outlined"
+                fullWidth
                 placeholder="Confirm your password"
                 value={confirmPassword}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   setConfirmPassword(e.target.value)
                 }
-                className="focus:ring-blue-500 focus:border-blue-500 w-full"
                 required
+                margin="normal"
               />
             </div>
 
-            <Button
+            <LoadingButton
               type="submit"
-              size="lg"
-              color="blue"
+              variant="contained"
+              color="primary"
               fullWidth
-              disabled={isLoading}
-              className="bg-blue-600 hover:bg-blue-700 py-3 rounded-lg"
+              loading={isLoading}
+              loadingText="Creating account..."
+              className="py-3 rounded-lg"
+              size="large"
             >
-              {isLoading ? "Creating account..." : "Create account"}
-            </Button>
+              Create account
+            </LoadingButton>
 
             <p className="mt-4 text-sm text-center text-gray-500">
               By signing up, you agree to our{" "}
@@ -242,7 +261,7 @@ export function Register() {
               </a>
             </p>
           </form>
-        </div>
+        </Paper>
       </div>
     </div>
   );
