@@ -219,65 +219,6 @@ export const ProjectDetail: React.FC = () => {
 
   return (
     <Box>
-      <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={8}>
-            <Typography variant="h4">{project.name}</Typography>
-            <Typography variant="body1" color="textSecondary" mt={1}>
-              {project.description || "No description provided"}
-            </Typography>
-          </Grid>
-          <Grid item xs={12} md={4} textAlign={{ xs: "left", md: "right" }}>
-            <Button
-              variant="outlined"
-              color="primary"
-              onClick={handleEditOpen}
-              sx={{ mr: 1 }}
-            >
-              Edit
-            </Button>
-            <Button variant="outlined" color="error" onClick={handleDelete}>
-              Delete
-            </Button>
-          </Grid>
-        </Grid>
-
-        <Divider sx={{ my: 2 }} />
-
-        <Grid container spacing={2}>
-          <Grid item xs={6} sm={3}>
-            <Typography variant="body2" color="textSecondary">
-              Created
-            </Typography>
-            <Typography variant="body1">
-              {new Date(project.created_at).toLocaleDateString()}
-            </Typography>
-          </Grid>
-          <Grid item xs={6} sm={3}>
-            <Typography variant="body2" color="textSecondary">
-              Last Updated
-            </Typography>
-            <Typography variant="body1">
-              {project.updated_at
-                ? new Date(project.updated_at).toLocaleDateString()
-                : "N/A"}
-            </Typography>
-          </Grid>
-          <Grid item xs={6} sm={3}>
-            <Typography variant="body2" color="textSecondary">
-              Owner ID
-            </Typography>
-            <Typography variant="body1">{project.owner_id}</Typography>
-          </Grid>
-          <Grid item xs={6} sm={3}>
-            <Typography variant="body2" color="textSecondary">
-              Project ID
-            </Typography>
-            <Typography variant="body1">{project.id}</Typography>
-          </Grid>
-        </Grid>
-      </Paper>
-
       <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
         <Tabs
           value={tabValue}
@@ -292,22 +233,13 @@ export const ProjectDetail: React.FC = () => {
       </Box>
 
       <TabPanel value={tabValue} index={0}>
-        <Paper elevation={2} sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Project Overview
-          </Typography>
-          <Typography variant="body1" mb={4}>
-            {project.description || "No description provided for this project."}
-          </Typography>
-
-          {/* React Flow Visualization */}
-          <Box mt={4}>
-            <Typography variant="h6" gutterBottom>
-              Project Flow
-            </Typography>
-            <ProjectFlow project={project} />
-          </Box>
-        </Paper>
+        <Box>
+          <ProjectFlow
+            project={project}
+            onEdit={handleEditOpen}
+            onDelete={handleDelete}
+          />
+        </Box>
       </TabPanel>
 
       <TabPanel value={tabValue} index={1}>

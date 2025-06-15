@@ -10,6 +10,7 @@ import ReactFlow, {
   NodeTypes,
   NodeMouseHandler,
   ReactFlowInstance,
+  BackgroundVariant,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import "./flow.css";
@@ -22,9 +23,12 @@ import { testCaseService, TestCase } from "../../services/testcase.service";
 import { featureService, Feature } from "../../services/feature.service";
 import { ProjectSidebar } from "./ProjectSidebar";
 import { useSnackbar } from "../../contexts/SnackbarContext";
+import { Box, Button } from "@mui/material";
 
 interface ProjectFlowProps {
   project: Project;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
 // Define custom node types
@@ -45,7 +49,11 @@ const fitViewOptions = {
   duration: 800,
 };
 
-export const ProjectFlow: React.FC<ProjectFlowProps> = ({ project }) => {
+export const ProjectFlow: React.FC<ProjectFlowProps> = ({
+  project,
+  onEdit,
+  onDelete,
+}) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [testCases, setTestCases] = useState<TestCase[]>([]);
@@ -237,6 +245,25 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({ project }) => {
 
   return (
     <FlowWrapper>
+      {(onEdit || onDelete) && (
+        <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+          {onEdit && (
+            <Button
+              variant="outlined"
+              color="primary"
+              onClick={onEdit}
+              sx={{ mr: 1 }}
+            >
+              Edit
+            </Button>
+          )}
+          {onDelete && (
+            <Button variant="outlined" color="error" onClick={onDelete}>
+              Delete
+            </Button>
+          )}
+        </Box>
+      )}
       <div className="flow-container relative">
         <ReactFlow
           nodes={nodes}
@@ -253,7 +280,12 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({ project }) => {
           fitViewOptions={fitViewOptions}
         >
           <MiniMap />
-          <Background color="#f8f8f8" gap={16} />
+          <Background
+            variant={BackgroundVariant.Dots}
+            gap={12}
+            size={1}
+            color="#ccc"
+          />
         </ReactFlow>
 
         <ProjectSidebar

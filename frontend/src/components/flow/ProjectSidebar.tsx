@@ -47,7 +47,6 @@ export const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
   const [featureNameError, setFeatureNameError] = useState("");
   const [features, setFeatures] = useState<Feature[]>([]);
   const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
-  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedFeatureId, setSelectedFeatureId] = useState<string | null>(
     null
   );
@@ -110,38 +109,20 @@ export const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
     }
   };
 
-  const handleFeatureMenuOpen = (
-    event: React.MouseEvent<HTMLButtonElement>,
-    featureId: string
-  ) => {
-    setMenuAnchorEl(event.currentTarget);
-    setSelectedFeatureId(featureId);
-  };
-
   const handleFeatureMenuClose = () => {
-    setMenuAnchorEl(null);
     setSelectedFeatureId(null);
   };
 
-  const handleEditFeature = () => {
-    const feature = features.find((f) => f.id === selectedFeatureId);
-    if (feature) {
-      setSelectedFeature(feature);
-      setFeatureName(feature.name);
-      setFeatureDescription(feature.description || "");
-      setIsEditFeatureModalOpen(true);
-    }
-    handleFeatureMenuClose();
-  };
-
-  const handleDeleteFeature = async () => {
-    if (!selectedFeatureId) return;
+  const handleDeleteFeature = async (featureId?: string) => {
+    // Use provided featureId or fallback to selectedFeatureId
+    const idToDelete = featureId || selectedFeatureId;
+    if (!idToDelete) return;
 
     try {
-      const success = await featureService.deleteFeature(selectedFeatureId);
+      const success = await featureService.deleteFeature(idToDelete);
       if (success) {
         // Update local state directly
-        setFeatures((prev) => prev.filter((f) => f.id !== selectedFeatureId));
+        setFeatures((prev) => prev.filter((f) => f.id !== idToDelete));
         showSnackbar("Feature deleted successfully", "success");
 
         // Notify parent component to update flow
@@ -264,7 +245,13 @@ export const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                     <IconButton
                       edge="end"
                       size="small"
-                      onClick={(e) => handleFeatureMenuOpen(e, feature.id)}
+                      onClick={() => {
+                        setSelectedFeature(feature);
+                        setFeatureName(feature.name);
+                        setFeatureDescription(feature.description || "");
+                        setIsEditFeatureModalOpen(true);
+                      }}
+                      sx={{ mr: 1 }}
                     >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -278,7 +265,36 @@ export const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           strokeWidth={2}
-                          d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        />
+                      </svg>
+                    </IconButton>
+                    <IconButton
+                      edge="end"
+                      size="small"
+                      onClick={() => {
+                        setSelectedFeatureId(feature.id);
+                        // Show confirmation dialog
+                        if (
+                          window.confirm(`Delete feature "${feature.name}"?`)
+                        ) {
+                          handleDeleteFeature(feature.id);
+                        }
+                      }}
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        width="18"
+                        height="18"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                         />
                       </svg>
                     </IconButton>
@@ -342,16 +358,6 @@ export const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
           Add Feature
         </Button>
       </Box>
-
-      {/* Feature Menu */}
-      <Menu
-        anchorEl={menuAnchorEl}
-        open={Boolean(menuAnchorEl)}
-        onClose={handleFeatureMenuClose}
-      >
-        <MenuItem onClick={handleEditFeature}>Edit</MenuItem>
-        <MenuItem onClick={handleDeleteFeature}>Delete</MenuItem>
-      </Menu>
 
       {/* Add Feature Modal */}
       <Dialog open={isAddFeatureModalOpen} onClose={handleCloseModal}>
