@@ -1,0 +1,92 @@
+import React, { memo } from "react";
+import { Handle, Position, NodeProps } from "reactflow";
+import "./TestNode.css";
+import { PriorityTest } from "./HighPriorityTestNode";
+
+interface LowPriorityTestNodeData {
+  label: string;
+  test: PriorityTest;
+  testCount?: number;
+  featureId?: string;
+  onClick?: () => void;
+}
+
+export const LowPriorityTestNode = memo(
+  ({ data }: NodeProps<LowPriorityTestNodeData>) => {
+    const handleClick = () => {
+      if (data.onClick) {
+        data.onClick();
+      }
+    };
+
+    // Calculate how many tests are untested
+    const isMultipleTests = data.testCount && data.testCount > 1;
+    const showBlinkingDot = !data.test.tested;
+
+    return (
+      <div className="test-node-container low-priority" onClick={handleClick}>
+        <div className="test-node-content">
+          <div className="test-node-icon">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              className="h-5 w-5"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </div>
+          <div className="test-node-label">{data.label}</div>
+          {showBlinkingDot && <div className="test-node-status"></div>}
+        </div>
+        <div className="test-node-subtitle">Low Priority Test</div>
+
+        {/* Left handle for horizontal connections */}
+        <Handle
+          type="target"
+          position={Position.Left}
+          id="left"
+          style={{
+            background: "#fff",
+            border: "1px solid #555",
+            width: "10px",
+            height: "10px",
+          }}
+          isConnectable={true}
+        />
+
+        {/* Top and bottom handles for vertical connections between stacked nodes */}
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          id="bottom"
+          style={{
+            background: "#fff",
+            border: "1px solid #555",
+            width: "10px",
+            height: "10px",
+          }}
+          isConnectable={true}
+        />
+        <Handle
+          type="target"
+          position={Position.Top}
+          id="top"
+          style={{
+            background: "#fff",
+            border: "1px solid #555",
+            width: "10px",
+            height: "10px",
+          }}
+          isConnectable={true}
+        />
+      </div>
+    );
+  }
+);

@@ -30,11 +30,14 @@ import {
 import { ProjectSidebar } from "./ProjectSidebar";
 import { FeatureSidebar } from "./FeatureSidebar";
 import { useSnackbar } from "../../contexts/SnackbarContext";
-import { Box, Button } from "@mui/material";
+import { Box, Button, IconButton, Fab } from "@mui/material";
 import { TestNode, Test } from "./nodes/TestNode";
 import { testService } from "../../services/test.service";
 import { SubFeatureNode } from "./nodes/SubFeatureNode";
 import { TestCasesSidebar } from "./TestCasesSidebar";
+import { HighPriorityTestNode } from "./nodes/HighPriorityTestNode";
+import { LowPriorityTestNode } from "./nodes/LowPriorityTestNode";
+import { NodeSelectorSidebar } from "./NodeSelectorSidebar";
 
 interface ProjectFlowProps {
   project: Project;
@@ -49,6 +52,8 @@ const nodeTypes: NodeTypes = {
   featureNode: FeatureNode,
   subFeatureNode: SubFeatureNode,
   testNode: TestNode,
+  highPriorityTestNode: HighPriorityTestNode,
+  lowPriorityTestNode: LowPriorityTestNode,
 };
 
 // Default viewport settings
@@ -83,6 +88,10 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
   const [reactFlowInstance, setReactFlowInstance] =
     useState<ReactFlowInstance | null>(null);
   const { showSnackbar } = useSnackbar();
+  const [isNodeSelectorOpen, setIsNodeSelectorOpen] = useState(false);
+  const [selectedNodeType, setSelectedNodeType] = useState<string | null>(null);
+  const [selectedFeatureForNode, setSelectedFeatureForNode] =
+    useState<Feature | null>(null);
 
   // Function to regenerate nodes and edges when features, tests, or test cases change
   const regenerateNodesAndEdges = useCallback(
@@ -495,6 +504,12 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
     if (feature) {
       setSelectedFeature(feature);
       setIsFeatureSidebarOpen(true);
+
+      // If a node type is selected, add the node to this feature
+      if (selectedNodeType) {
+        addNodeToFeature(feature, selectedNodeType);
+        setSelectedNodeType(null); // Reset selected node type
+      }
     } else {
       console.error("Feature not found with ID:", featureId);
       console.error(
@@ -620,6 +635,125 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
     }, 200); // Increased timeout to ensure nodes are properly positioned
   };
 
+  // Handle node selector open
+  const handleOpenNodeSelector = () => {
+    setIsNodeSelectorOpen(true);
+  };
+
+  // Handle node type selection
+  const handleSelectNodeType = (nodeType: string) => {
+    setSelectedNodeType(nodeType);
+    setIsNodeSelectorOpen(false);
+
+    // If a feature is already selected, proceed with adding the node
+    if (selectedFeature) {
+      addNodeToFeature(selectedFeature, nodeType);
+    } else {
+      // Otherwise, show a message to select a feature first
+      showSnackbar("Please select a feature first to add a test node", "info");
+    }
+  };
+
+  // Add a new node to a feature
+  const addNodeToFeature = async (feature: Feature, nodeType: string) => {
+    if (!feature || !feature.id) return;
+
+    try {
+      // Create a test with the appropriate priority
+      const priority =
+        nodeType === "highPriorityTest"
+          ? "high"
+          : nodeType === "lowPriorityTest"
+          ? "low"
+          : "normal";
+
+      const testName = `${
+        priority === "high"
+          ? "High Priority"
+          : priority === "low"
+          ? "Low Priority"
+          : "Regular"
+      } Test`;
+
+      // Create the test in the backend
+      const newTest = await testService.createTest({
+        name: testName,
+        feature_id: parseInt(feature.id.toString(), 10),
+        priority: priority,
+      });
+
+      if (newTest) {
+        // Refresh tests
+        await handleTestsUpdated(newTest);
+
+        // Create a new node
+        const featureNode = nodes.find(
+          (node) =>
+            node.id === feature.id.toString() ||
+            (node.data?.feature?.id &&
+              node.data.feature.id.toString() === feature.id.toString())
+        );
+
+        if (featureNode) {
+          // Position the new node to the right of the feature
+          const nodeX = featureNode.position.x + 400;
+          const nodeY = featureNode.position.y;
+
+          // Determine node type
+          const flowNodeType =
+            nodeType === "highPriorityTest"
+              ? "highPriorityTestNode"
+              : nodeType === "lowPriorityTest"
+              ? "lowPriorityTestNode"
+              : "testNode";
+
+          // Create the new node
+          const newNode: Node = {
+            id: `${nodeType}-${newTest.id}`,
+            type: flowNodeType,
+            data: {
+              label: `${testName} (1)`,
+              test: newTest,
+              testCount: 1,
+              featureId: feature.id.toString(),
+            },
+            position: { x: nodeX, y: nodeY },
+          };
+
+          // Create edge from feature to new node
+          const newEdge: Edge = {
+            id: `edge-${feature.id}-${newNode.id}`,
+            source: feature.id.toString(),
+            target: newNode.id,
+            sourceHandle: "right",
+            targetHandle: "left",
+            type: "bezier",
+            animated: false,
+            style: {
+              stroke: "#555",
+              strokeWidth: 1.5,
+            },
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              width: 15,
+              height: 15,
+              color: "#555",
+            },
+          };
+
+          // Add the new node and edge
+          setNodes((prevNodes) => [...prevNodes, newNode]);
+          setEdges((prevEdges) => [...prevEdges, newEdge]);
+
+          showSnackbar(`Added ${testName} to ${feature.name}`, "success");
+        }
+      }
+    } catch (error) {
+      console.error("Error adding test node:", error);
+      showSnackbar("Failed to add test node", "error");
+    }
+  };
+
   return (
     <FlowWrapper>
       {(onEdit || onDelete) && (
@@ -667,6 +801,21 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
           />
         </ReactFlow>
 
+        {/* Add Node FAB */}
+        <Fab
+          color="primary"
+          aria-label="add"
+          onClick={handleOpenNodeSelector}
+          sx={{
+            position: "absolute",
+            bottom: 16,
+            right: 16,
+            zIndex: 1000,
+          }}
+        >
+          +
+        </Fab>
+
         <ProjectSidebar
           project={project}
           isOpen={isSidebarOpen}
@@ -689,6 +838,12 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
           isOpen={isTestCasesSidebarOpen}
           onClose={() => setIsTestCasesSidebarOpen(false)}
           onTestsUpdated={handleTestsUpdated}
+        />
+
+        <NodeSelectorSidebar
+          isOpen={isNodeSelectorOpen}
+          onClose={() => setIsNodeSelectorOpen(false)}
+          onSelectNodeType={handleSelectNodeType}
         />
       </div>
     </FlowWrapper>

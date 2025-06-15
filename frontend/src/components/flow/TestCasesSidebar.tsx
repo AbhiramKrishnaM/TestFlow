@@ -16,6 +16,10 @@ import {
   Paper,
   Tooltip,
   Switch,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import { Feature } from "../../services/feature.service";
 import { Test } from "./nodes/TestNode";
@@ -38,6 +42,9 @@ export const TestCasesSidebar: React.FC<TestCasesSidebarProps> = ({
   const [tests, setTests] = useState<Test[]>([]);
   const [loading, setLoading] = useState(false);
   const [newTestName, setNewTestName] = useState("");
+  const [newTestPriority, setNewTestPriority] = useState<
+    "high" | "normal" | "low"
+  >("normal");
   const [submitting, setSubmitting] = useState(false);
   const { showSnackbar } = useSnackbar();
 
@@ -83,11 +90,13 @@ export const TestCasesSidebar: React.FC<TestCasesSidebarProps> = ({
       const newTest = await testService.createTest({
         name: newTestName.trim(),
         feature_id: parseInt(feature.id.toString(), 10),
+        priority: newTestPriority,
       });
 
       if (newTest) {
         setTests([...tests, newTest]);
         setNewTestName("");
+        setNewTestPriority("normal");
         onTestsUpdated(newTest);
         showSnackbar("Test added successfully", "success");
       }
@@ -170,7 +179,7 @@ export const TestCasesSidebar: React.FC<TestCasesSidebarProps> = ({
         </IconButton>
       </Box>
 
-      <Box mb={3} display="flex">
+      <Box mb={3}>
         <TextField
           fullWidth
           label="Test Name"
@@ -179,17 +188,36 @@ export const TestCasesSidebar: React.FC<TestCasesSidebarProps> = ({
           value={newTestName}
           onChange={(e) => setNewTestName(e.target.value)}
           disabled={submitting}
-          sx={{ mr: 1 }}
+          sx={{ mb: 2 }}
         />
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleAddTest}
-          disabled={!newTestName.trim() || submitting}
-          sx={{ whiteSpace: "nowrap" }}
-        >
-          {submitting ? <CircularProgress size={24} /> : "Add Test"}
-        </Button>
+        <Box display="flex" mb={2}>
+          <FormControl fullWidth size="small" sx={{ mr: 1 }}>
+            <InputLabel id="test-priority-label">Priority</InputLabel>
+            <Select
+              labelId="test-priority-label"
+              id="test-priority"
+              value={newTestPriority}
+              label="Priority"
+              onChange={(e) =>
+                setNewTestPriority(e.target.value as "high" | "normal" | "low")
+              }
+              disabled={submitting}
+            >
+              <MenuItem value="high">High</MenuItem>
+              <MenuItem value="normal">Normal</MenuItem>
+              <MenuItem value="low">Low</MenuItem>
+            </Select>
+          </FormControl>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleAddTest}
+            disabled={!newTestName.trim() || submitting}
+            sx={{ whiteSpace: "nowrap" }}
+          >
+            {submitting ? <CircularProgress size={24} /> : "Add Test"}
+          </Button>
+        </Box>
       </Box>
 
       {loading ? (
@@ -203,6 +231,7 @@ export const TestCasesSidebar: React.FC<TestCasesSidebarProps> = ({
               <TableRow>
                 <TableCell>Status</TableCell>
                 <TableCell>Test Case</TableCell>
+                <TableCell>Priority</TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -235,6 +264,33 @@ export const TestCasesSidebar: React.FC<TestCasesSidebarProps> = ({
                     <Typography variant="caption" color="text.secondary">
                       {test.tested ? "Tested" : "Not tested"}
                     </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Box
+                      sx={{
+                        display: "inline-block",
+                        px: 1.5,
+                        py: 0.5,
+                        borderRadius: 1,
+                        fontSize: "0.75rem",
+                        fontWeight: "bold",
+                        textTransform: "uppercase",
+                        bgcolor:
+                          test.priority === "high"
+                            ? "#fee2e2"
+                            : test.priority === "low"
+                            ? "#dbeafe"
+                            : "#f3f4f6",
+                        color:
+                          test.priority === "high"
+                            ? "#b91c1c"
+                            : test.priority === "low"
+                            ? "#1d4ed8"
+                            : "#4b5563",
+                      }}
+                    >
+                      {test.priority || "normal"}
+                    </Box>
                   </TableCell>
                   <TableCell align="right">
                     <Tooltip title="Delete test">

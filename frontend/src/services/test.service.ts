@@ -1,5 +1,6 @@
 import { Test } from "../components/flow/nodes/TestNode";
 import { apiClient } from "./api-client";
+import { PriorityTest } from "../components/flow/nodes/HighPriorityTestNode";
 
 // In a real application, this would interact with a backend API
 // For now, we'll use local storage to persist tests
@@ -7,6 +8,7 @@ import { apiClient } from "./api-client";
 export interface TestCreateDto {
   name: string;
   feature_id: number;
+  priority?: "high" | "low" | "normal";
 }
 
 // Simple UUID generator
@@ -30,6 +32,7 @@ class TestService {
         name: test.name,
         featureId: test.feature_id.toString(),
         tested: test.tested,
+        priority: test.priority || "normal",
       }));
     } catch (error) {
       console.error("Error fetching feature tests:", error);
@@ -47,6 +50,7 @@ class TestService {
         name: test.name,
         featureId: test.feature_id.toString(),
         tested: test.tested,
+        priority: test.priority || "normal",
       }));
     } catch (error) {
       console.error("Error fetching all tests:", error);
@@ -60,6 +64,7 @@ class TestService {
         name: testData.name,
         feature_id: testData.feature_id,
         tested: false,
+        priority: testData.priority || "normal",
       });
 
       return {
@@ -67,6 +72,7 @@ class TestService {
         name: response.data.name,
         featureId: response.data.feature_id.toString(),
         tested: response.data.tested,
+        priority: response.data.priority || "normal",
       };
     } catch (error) {
       console.error("Error creating test:", error);
@@ -79,6 +85,7 @@ class TestService {
       const payload: any = {};
       if (updates.name !== undefined) payload.name = updates.name;
       if (updates.tested !== undefined) payload.tested = updates.tested;
+      if (updates.priority !== undefined) payload.priority = updates.priority;
 
       const response = await apiClient.put(`${this.apiUrl}/${id}`, payload);
 
@@ -87,6 +94,7 @@ class TestService {
         name: response.data.name,
         featureId: response.data.feature_id.toString(),
         tested: response.data.tested,
+        priority: response.data.priority || "normal",
       };
     } catch (error) {
       console.error("Error updating test:", error);
@@ -113,6 +121,7 @@ class TestService {
         name: response.data.name,
         featureId: response.data.feature_id.toString(),
         tested: response.data.tested,
+        priority: response.data.priority || "normal",
       };
     } catch (error) {
       console.error("Error toggling test status:", error);

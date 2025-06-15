@@ -7,6 +7,7 @@ export interface Test {
   name: string;
   featureId: string;
   tested: boolean;
+  priority?: "high" | "low" | "normal";
 }
 
 interface TestNodeData {

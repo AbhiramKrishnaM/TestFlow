@@ -16,6 +16,10 @@ import {
   Tooltip,
   Tab,
   Tabs,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import { Feature, featureService } from "../../services/feature.service";
 import { Test } from "./nodes/TestNode";
@@ -42,6 +46,9 @@ export const FeatureSidebar: React.FC<FeatureSidebarProps> = ({
   const [tests, setTests] = useState<Test[]>([]);
   const [loading, setLoading] = useState(false);
   const [newTestName, setNewTestName] = useState("");
+  const [newTestPriority, setNewTestPriority] = useState<
+    "high" | "normal" | "low"
+  >("normal");
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState(initialTab);
   const [featureName, setFeatureName] = useState("");
@@ -142,11 +149,13 @@ export const FeatureSidebar: React.FC<FeatureSidebarProps> = ({
       const newTest = await testService.createTest({
         name: newTestName.trim(),
         feature_id: parseInt(feature.id.toString(), 10),
+        priority: newTestPriority,
       });
 
       if (newTest) {
         setTests([...tests, newTest]);
         setNewTestName("");
+        setNewTestPriority("normal"); // Reset priority to default
         onTestsUpdated(newTest);
         showSnackbar("Test added successfully", "success");
       }
@@ -362,12 +371,31 @@ export const FeatureSidebar: React.FC<FeatureSidebarProps> = ({
                   value={newTestName}
                   onChange={(e) => setNewTestName(e.target.value)}
                   disabled={submitting}
+                  sx={{ mb: 2 }}
                 />
+                <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+                  <InputLabel id="test-priority-label">Priority</InputLabel>
+                  <Select
+                    labelId="test-priority-label"
+                    id="test-priority"
+                    value={newTestPriority}
+                    label="Priority"
+                    onChange={(e) =>
+                      setNewTestPriority(
+                        e.target.value as "high" | "normal" | "low"
+                      )
+                    }
+                    disabled={submitting}
+                  >
+                    <MenuItem value="high">High</MenuItem>
+                    <MenuItem value="normal">Normal</MenuItem>
+                    <MenuItem value="low">Low</MenuItem>
+                  </Select>
+                </FormControl>
                 <Button
                   variant="contained"
                   color="primary"
                   fullWidth
-                  sx={{ mt: 1 }}
                   onClick={handleAddTest}
                   disabled={!newTestName.trim() || submitting}
                 >
@@ -390,6 +418,16 @@ export const FeatureSidebar: React.FC<FeatureSidebarProps> = ({
                         key={test.id}
                         button
                         onClick={() => handleToggleTestStatus(test.id)}
+                        sx={{
+                          borderLeft: "4px solid",
+                          borderLeftColor:
+                            test.priority === "high"
+                              ? "#ef4444"
+                              : test.priority === "low"
+                              ? "#3b82f6"
+                              : "#e2e8f0",
+                          mb: 0.5,
+                        }}
                       >
                         <Box display="flex" alignItems="center" mr={1}>
                           {test.tested ? (
@@ -415,7 +453,44 @@ export const FeatureSidebar: React.FC<FeatureSidebarProps> = ({
                         </Box>
                         <ListItemText
                           primary={test.name}
-                          secondary={test.tested ? "Tested" : "Not tested"}
+                          secondary={
+                            <Box
+                              component="span"
+                              display="flex"
+                              alignItems="center"
+                            >
+                              <Typography variant="caption" component="span">
+                                {test.tested ? "Tested" : "Not tested"}
+                              </Typography>
+                              <Box
+                                component="span"
+                                sx={{
+                                  display: "inline-block",
+                                  px: 1,
+                                  py: 0.25,
+                                  ml: 1,
+                                  borderRadius: 1,
+                                  fontSize: "0.6rem",
+                                  fontWeight: "bold",
+                                  textTransform: "uppercase",
+                                  bgcolor:
+                                    test.priority === "high"
+                                      ? "#fee2e2"
+                                      : test.priority === "low"
+                                      ? "#dbeafe"
+                                      : "#f3f4f6",
+                                  color:
+                                    test.priority === "high"
+                                      ? "#b91c1c"
+                                      : test.priority === "low"
+                                      ? "#1d4ed8"
+                                      : "#4b5563",
+                                }}
+                              >
+                                {test.priority || "normal"}
+                              </Box>
+                            </Box>
+                          }
                         />
                         <ListItemSecondaryAction>
                           <Tooltip title="Delete test">
