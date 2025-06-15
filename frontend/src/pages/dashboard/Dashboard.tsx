@@ -11,12 +11,78 @@ import { Link } from "react-router-dom";
 import { AddProjectModal } from "../../pages/projects/AddProjectModal";
 import { useSnackbar } from "../../contexts/SnackbarContext";
 import { useProjects } from "../../layouts/DashboardLayout";
+import { Grid, Box, Paper } from "@mui/material";
+import {
+  BarChart,
+  PieChart,
+  LineChart,
+  AreaPlot,
+  ResponsiveChartContainer,
+} from "@mui/x-charts";
+import {
+  analyticsService,
+  TestStatusCount,
+  TestPriorityCount,
+  ProjectActivityData,
+  TestProgressData,
+} from "../../services/analytics.service";
 
 export function Dashboard() {
   const { user } = useAuth();
   const { projects, loading, setProjects } = useProjects();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { showSnackbar } = useSnackbar();
+
+  // Analytics states
+  const [testStatusData, setTestStatusData] = useState<TestStatusCount>({
+    tested: 0,
+    untested: 0,
+    total: 0,
+  });
+  const [testPriorityData, setTestPriorityData] = useState<TestPriorityCount>({
+    high: 0,
+    normal: 0,
+    low: 0,
+    total: 0,
+  });
+  const [projectActivity, setProjectActivity] = useState<ProjectActivityData>({
+    dates: [],
+    test_counts: [],
+    feature_counts: [],
+  });
+  const [testProgress, setTestProgress] = useState<TestProgressData>({
+    months: [],
+    completed: [],
+    added: [],
+  });
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
+
+  // Fetch analytics data
+  useEffect(() => {
+    const fetchAnalyticsData = async () => {
+      setAnalyticsLoading(true);
+      try {
+        const [statusData, priorityData, activityData, progressData] =
+          await Promise.all([
+            analyticsService.getTestStatusCounts(),
+            analyticsService.getTestPriorityCounts(),
+            analyticsService.getProjectActivity(),
+            analyticsService.getTestProgress(),
+          ]);
+
+        setTestStatusData(statusData);
+        setTestPriorityData(priorityData);
+        setProjectActivity(activityData);
+        setTestProgress(progressData);
+      } catch (error) {
+        console.error("Error fetching analytics data:", error);
+      } finally {
+        setAnalyticsLoading(false);
+      }
+    };
+
+    fetchAnalyticsData();
+  }, []);
 
   const handleAddProject = async (name: string, description: string) => {
     try {
@@ -38,24 +104,48 @@ export function Dashboard() {
   const openModal = () => setIsModalOpen(true);
   const closeModal = () => setIsModalOpen(false);
 
+  // Prepare chart data
+  const testStatusSeries = [
+    {
+      data: [testStatusData.tested, testStatusData.untested],
+      label: "Test Status",
+      type: "pie",
+    },
+  ];
+
+  const testStatusLabels = ["Tested", "Untested"];
+
+  const testPrioritySeries = [
+    {
+      data: [
+        testPriorityData.high,
+        testPriorityData.normal,
+        testPriorityData.low,
+      ],
+      label: "Priority",
+    },
+  ];
+
   return (
     <div className="space-y-6">
-      <Typography variant="h4">Dashboard</Typography>
+      <Typography variant="h4" className="mb-6">
+        Dashboard
+      </Typography>
 
-      <Card>
+      <Card className="mb-6">
         <CardBody>
           <Typography variant="h6" color="blue" className="mb-4">
             Welcome back, {user?.full_name || user?.username || "User"}!
           </Typography>
           <Typography>
-            This is your TestFlow dashboard where you can manage your test cases
-            and projects. Use the navigation menu to access different sections
-            of the application.
+            This is your Test Flow dashboard where you can manage your tests and
+            projects. Use the navigation menu to access different sections of
+            the application.
           </Typography>
         </CardBody>
       </Card>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3 mb-8">
         <StatCard
           title="Projects"
           value={loading ? "..." : projects.length.toString()}
@@ -79,9 +169,9 @@ export function Dashboard() {
         />
 
         <StatCard
-          title="Test Cases"
-          value="0"
-          description="Total test cases"
+          title="Tests"
+          value={analyticsLoading ? "..." : testStatusData.total.toString()}
+          description="Total tests"
           icon={
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -102,7 +192,7 @@ export function Dashboard() {
 
         <StatCard
           title="Passed Tests"
-          value="0"
+          value={analyticsLoading ? "..." : testStatusData.tested.toString()}
           description="Tests with passing status"
           icon={
             <svg
@@ -122,6 +212,229 @@ export function Dashboard() {
           }
         />
       </div>
+
+      {/* Analytics Charts */}
+      {!analyticsLoading && (
+        <Grid container spacing={3}>
+          {/* Project Activity Line Chart */}
+          <Grid item xs={12}>
+            <Paper elevation={2} sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Project Activity (Last 30 Days)
+              </Typography>
+              <Box sx={{ height: 350, width: "100%" }}>
+                {projectActivity.dates.length > 0 ? (
+                  <LineChart
+                    xAxis={[
+                      {
+                        data: projectActivity.dates.slice(-14),
+                        scaleType: "point",
+                        valueFormatter: (date) =>
+                          new Date(date).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                          }),
+                      },
+                    ]}
+                    series={[
+                      {
+                        data: projectActivity.test_counts.slice(-14),
+                        label: "Tests",
+                        color: "#2196F3",
+                        showMark: true,
+                        curve: "linear",
+                      },
+                      {
+                        data: projectActivity.feature_counts.slice(-14),
+                        label: "Features",
+                        color: "#4CAF50",
+                        showMark: true,
+                        curve: "linear",
+                      },
+                    ]}
+                    height={350}
+                    margin={{ top: 20, right: 20, bottom: 30, left: 40 }}
+                    sx={{
+                      ".MuiLineElement-root": {
+                        strokeWidth: 2,
+                      },
+                      ".MuiMarkElement-root": {
+                        stroke: "#fff",
+                        strokeWidth: 2,
+                        scale: "0.6",
+                      },
+                    }}
+                  />
+                ) : (
+                  <Box
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    height="100%"
+                  >
+                    <Typography color="text.secondary">
+                      No activity data available
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            </Paper>
+          </Grid>
+
+          {/* Test Progress Area Chart */}
+          <Grid item xs={12}>
+            <Paper elevation={2} sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Test Progress (Last 6 Months)
+              </Typography>
+              <Box sx={{ height: 350, width: "100%" }}>
+                {testProgress.months.length > 0 ? (
+                  <LineChart
+                    xAxis={[
+                      {
+                        data: testProgress.months,
+                        scaleType: "band",
+                      },
+                    ]}
+                    series={[
+                      {
+                        data: testProgress.added,
+                        label: "Tests Added",
+                        color: "#FF9800",
+                        area: true,
+                        showMark: true,
+                      },
+                      {
+                        data: testProgress.completed,
+                        label: "Tests Completed",
+                        color: "#4CAF50",
+                        area: true,
+                        showMark: true,
+                      },
+                    ]}
+                    height={350}
+                    margin={{ top: 20, right: 20, bottom: 30, left: 40 }}
+                    sx={{
+                      ".MuiAreaElement-root": {
+                        fillOpacity: 0.3,
+                      },
+                      ".MuiMarkElement-root": {
+                        stroke: "#fff",
+                        strokeWidth: 2,
+                        scale: "0.6",
+                      },
+                    }}
+                  />
+                ) : (
+                  <Box
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    height="100%"
+                  >
+                    <Typography color="text.secondary">
+                      No progress data available
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            </Paper>
+          </Grid>
+
+          {/* Test Status and Priority Charts in a row */}
+          <Grid item xs={12} md={6}>
+            <Paper elevation={2} sx={{ p: 3, height: "100%" }}>
+              <Typography variant="h6" gutterBottom>
+                Test Status
+              </Typography>
+              <Box sx={{ height: 300, width: "100%" }}>
+                {testStatusData.total > 0 ? (
+                  <PieChart
+                    series={[
+                      {
+                        data: [
+                          {
+                            id: 0,
+                            value: testStatusData.tested,
+                            label: "Tested",
+                            color: "#4CAF50",
+                          },
+                          {
+                            id: 1,
+                            value: testStatusData.untested,
+                            label: "Untested",
+                            color: "#FF9800",
+                          },
+                        ],
+                        innerRadius: 30,
+                        outerRadius: 100,
+                        paddingAngle: 2,
+                        cornerRadius: 5,
+                        startAngle: -90,
+                        endAngle: 270,
+                        cx: 150,
+                        cy: 150,
+                      },
+                    ]}
+                    height={300}
+                  />
+                ) : (
+                  <Box
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    height="100%"
+                  >
+                    <Typography color="text.secondary">
+                      No test data available
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            </Paper>
+          </Grid>
+
+          {/* Test Priority Bar Chart */}
+          <Grid item xs={12} md={6}>
+            <Paper elevation={2} sx={{ p: 3, height: "100%" }}>
+              <Typography variant="h6" gutterBottom>
+                Test Priority Distribution
+              </Typography>
+              <Box sx={{ height: 300, width: "100%" }}>
+                {testPriorityData.total > 0 ? (
+                  <BarChart
+                    xAxis={[
+                      { scaleType: "band", data: ["High", "Normal", "Low"] },
+                    ]}
+                    series={[
+                      {
+                        data: [
+                          testPriorityData.high,
+                          testPriorityData.normal,
+                          testPriorityData.low,
+                        ],
+                        color: "#2196F3",
+                      },
+                    ]}
+                    height={300}
+                  />
+                ) : (
+                  <Box
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    height="100%"
+                  >
+                    <Typography color="text.secondary">
+                      No priority data available
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            </Paper>
+          </Grid>
+        </Grid>
+      )}
 
       {!loading && projects.length === 0 && (
         <div className="flex flex-col items-center justify-center p-8 text-center">
@@ -145,7 +458,7 @@ export function Dashboard() {
             No projects yet
           </Typography>
           <Typography className="mb-6 text-gray-600">
-            Create your first project to start managing test cases
+            Create your first project to start managing tests
           </Typography>
           <Button color="blue" onClick={openModal}>
             + Add Project
