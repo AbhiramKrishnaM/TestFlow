@@ -17,9 +17,12 @@ import {
   Tab,
 } from "@mui/material";
 import { projectService, Project } from "../../services/project.service";
+import { testCaseService, TestCase } from "../../services/testcase.service";
 import { ProjectMembers } from "./ProjectMembers";
+import { ProjectFlow } from "../../components/flow/ProjectFlow";
 import { useProjects } from "../../layouts/DashboardLayout";
 import { useSnackbar } from "../../contexts/SnackbarContext";
+import { AddTestCaseModal } from "../testcases/AddTestCaseModal";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -64,6 +67,8 @@ export const ProjectDetail: React.FC = () => {
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [tabValue, setTabValue] = useState(0);
+  const [testCases, setTestCases] = useState<TestCase[]>([]);
+  const [isTestCaseModalOpen, setIsTestCaseModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchProject = async () => {
@@ -142,6 +147,47 @@ export const ProjectDetail: React.FC = () => {
       console.error("Error deleting project:", err);
       setError("Failed to delete project");
       showSnackbar("Failed to delete project", "error");
+    }
+  };
+
+  const fetchTestCases = async () => {
+    try {
+      const data = await testCaseService.getProjectTestCases(projectId);
+      setTestCases(data);
+    } catch (err) {
+      console.error("Error fetching test cases:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (project) {
+      fetchTestCases();
+    }
+  }, [project]);
+
+  const handleAddTestCase = async (
+    title: string,
+    description: string,
+    status: string,
+    priority: string
+  ) => {
+    try {
+      const newTestCase = await testCaseService.createTestCase({
+        title,
+        description,
+        project_id: projectId,
+        status: status as any,
+        priority: priority as any,
+      });
+
+      if (newTestCase) {
+        setTestCases([...testCases, newTestCase]);
+        showSnackbar("Test case created successfully", "success");
+        setIsTestCaseModalOpen(false);
+      }
+    } catch (err) {
+      console.error("Error creating test case:", err);
+      showSnackbar("Failed to create test case", "error");
     }
   };
 
@@ -250,10 +296,17 @@ export const ProjectDetail: React.FC = () => {
           <Typography variant="h6" gutterBottom>
             Project Overview
           </Typography>
-          <Typography variant="body1">
+          <Typography variant="body1" mb={4}>
             {project.description || "No description provided for this project."}
           </Typography>
-          {/* Additional overview content can go here */}
+
+          {/* React Flow Visualization */}
+          <Box mt={4}>
+            <Typography variant="h6" gutterBottom>
+              Project Flow
+            </Typography>
+            <ProjectFlow project={project} />
+          </Box>
         </Paper>
       </TabPanel>
 
@@ -263,18 +316,54 @@ export const ProjectDetail: React.FC = () => {
 
       <TabPanel value={tabValue} index={2}>
         <Paper elevation={2} sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Test Cases
-          </Typography>
-          <Typography
-            variant="body1"
-            color="textSecondary"
-            textAlign="center"
-            py={4}
+          <Box
+            display="flex"
+            justifyContent="space-between"
+            alignItems="center"
+            mb={3}
           >
-            No test cases have been created for this project yet.
-          </Typography>
-          {/* Test cases will be implemented in the future */}
+            <Typography variant="h6">Test Cases</Typography>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  className="h-5 w-5"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
+              }
+              onClick={() => setIsTestCaseModalOpen(true)}
+            >
+              Add Test Case
+            </Button>
+          </Box>
+          {testCases.length === 0 ? (
+            <Typography
+              variant="body1"
+              color="textSecondary"
+              textAlign="center"
+              py={4}
+            >
+              No test cases have been created for this project yet.
+            </Typography>
+          ) : (
+            <Box>
+              {/* Test case list will be implemented here */}
+              <Typography variant="body2">
+                {testCases.length} test case(s) found
+              </Typography>
+            </Box>
+          )}
         </Paper>
       </TabPanel>
 
@@ -338,6 +427,14 @@ export const ProjectDetail: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Add Test Case Modal */}
+      <AddTestCaseModal
+        isOpen={isTestCaseModalOpen}
+        projectId={projectId}
+        onClose={() => setIsTestCaseModalOpen(false)}
+        onSubmit={handleAddTestCase}
+      />
     </Box>
   );
 };
