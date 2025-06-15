@@ -55,9 +55,9 @@ const defaultViewport = { x: 0, y: 0, zoom: 0.6 };
 
 // Fit view options
 const fitViewOptions = {
-  padding: 0.5,
-  maxZoom: 0.7,
-  minZoom: 0.5,
+  padding: 0.8,
+  maxZoom: 0.6,
+  minZoom: 0.4,
   duration: 800,
 };
 
@@ -116,22 +116,48 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
       ) => {
         if (features.length === 0) return;
 
-        const yPosition = 150 + level * 150; // Vertical position based on hierarchy level
-        const featureWidth = (xEnd - xStart) / features.length;
+        // Increase vertical spacing between levels
+        const yPosition = 150 + level * 200; // Increased from 150 to 200
+
+        // Calculate width based on number of features at this level
+        // Ensure minimum width per feature to prevent overcrowding
+        const minWidthPerFeature = 300; // Minimum width per feature
+        const totalMinWidth = features.length * minWidthPerFeature;
+        const availableWidth = xEnd - xStart;
+
+        // If available width is less than minimum required, expand it
+        const effectiveWidth = Math.max(availableWidth, totalMinWidth);
+        const featureWidth = effectiveWidth / features.length;
+
+        // Calculate starting x position to center the nodes if we expanded the width
+        const adjustedXStart = xStart + (availableWidth - effectiveWidth) / 2;
 
         features.forEach((feature, index) => {
+          // Ensure feature ID is a string and log it
           const featureId = String(feature.id);
-          const xPosition = xStart + featureWidth * index + featureWidth / 2;
+
+          // Position feature in the center of its allocated space
+          const xPosition =
+            adjustedXStart + featureWidth * index + featureWidth / 2;
 
           // Create feature node
           const nodeType = level === 0 ? "featureNode" : "subFeatureNode";
+
+          // Create a clean feature object with string ID
+          const featureForNode = {
+            ...feature,
+            id: featureId,
+            children: [], // Don't need children in the node data
+          };
+
           const featureNode: Node = {
             id: featureId,
             type: nodeType,
             data: {
               label: feature.name,
-              feature,
-              onClick: (featureId: string) => handleFeatureClick(featureId),
+              feature: featureForNode,
+              onClick: (clickedFeatureId: string) =>
+                handleFeatureClick(clickedFeatureId),
             },
             position: { x: xPosition, y: yPosition },
           };
@@ -147,10 +173,12 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
           allNodes.push(featureNode);
           allEdges.push(edge);
 
-          // Process children recursively
+          // Process children recursively with proper spacing
           if (feature.children && feature.children.length > 0) {
-            const childXStart = xPosition - featureWidth / 2;
-            const childXEnd = xPosition + featureWidth / 2;
+            // For children, allocate space proportionally based on the number of children
+            const childXStart = xPosition - featureWidth * 0.8; // Use 80% of parent's width
+            const childXEnd = xPosition + featureWidth * 0.8;
+
             processFeatures(
               feature.children,
               featureId,
@@ -161,11 +189,25 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
           }
 
           // Add test nodes for this feature
-          const featureTests = tests.filter(
-            (test) => test.featureId === featureId
+          const featureTests = tests.filter((test) => {
+            // Compare both as strings and as numbers to ensure matching
+            const testFeatureId = test.featureId?.toString();
+            return (
+              testFeatureId === featureId ||
+              testFeatureId === feature.id.toString() ||
+              parseInt(testFeatureId || "0") === parseInt(featureId)
+            );
+          });
+
+          console.log(
+            `Feature ${feature.name} (ID: ${featureId}) - Found ${featureTests.length} tests`
           );
 
           if (featureTests.length > 0) {
+            // Position test nodes to the right and stacked vertically
+            const baseX = xPosition + 400; // Fixed position to the right
+            const baseY = yPosition; // Start at the same vertical position
+
             // Create a single test node that contains all tests for this feature
             const testNode: Node = {
               id: `tests-${featureId}`,
@@ -177,9 +219,8 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
                 featureId: featureId, // Store the feature ID to use when clicked
               },
               position: {
-                // Position test nodes to the right of the feature node with proper alignment
-                x: xPosition + 350,
-                y: yPosition - 40,
+                x: baseX,
+                y: baseY,
               },
             };
 
@@ -188,9 +229,10 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
               source: featureId,
               target: `tests-${featureId}`,
               sourceHandle: null,
-              targetHandle: null,
+              targetHandle: "left", // Always connect to the left side of test nodes
               animated: false,
-              type: "smoothstep",
+              type: "straight", // Use straight lines for cleaner appearance
+              style: { stroke: "#b1b1b7", strokeWidth: 1.5 }, // Lighter, thinner line
             };
 
             allNodes.push(testNode);
@@ -199,8 +241,60 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
         });
       };
 
+      // Separate function to create stacked test nodes
+      const stackTestNodes = () => {
+        // Group test nodes by their x position
+        const nodesByX: { [key: number]: Node[] } = {};
+
+        // First, collect all test nodes
+        const testNodes = allNodes.filter((node) => node.type === "testNode");
+
+        // Group them by x position
+        testNodes.forEach((node) => {
+          const x = Math.round(node.position.x / 10) * 10; // Round to nearest 10px for grouping
+          if (!nodesByX[x]) {
+            nodesByX[x] = [];
+          }
+          nodesByX[x].push(node);
+        });
+
+        // Now reposition nodes in each group to stack vertically with spacing
+        Object.values(nodesByX).forEach((nodes) => {
+          if (nodes.length <= 1) return; // Skip if only one node
+
+          // Sort nodes by their original y position
+          nodes.sort((a, b) => a.position.y - b.position.y);
+
+          // Stack them with vertical spacing
+          const spacing = 120; // Increased vertical spacing between nodes
+          nodes.forEach((node, index) => {
+            const baseY = nodes[0].position.y;
+            node.position.y = baseY + index * spacing;
+
+            // Add vertical connections between stacked nodes
+            if (index > 0) {
+              const prevNode = nodes[index - 1];
+              const verticalEdge: Edge = {
+                id: `vertical-edge-${prevNode.id}-${node.id}`,
+                source: prevNode.id,
+                target: node.id,
+                sourceHandle: "bottom", // Connect from bottom of previous node
+                targetHandle: "top", // Connect to top of current node
+                animated: false,
+                type: "straight",
+                style: { stroke: "#b1b1b7", strokeWidth: 1 }, // Even lighter for vertical connections
+              };
+              allEdges.push(verticalEdge);
+            }
+          });
+        });
+      };
+
       // Start processing from root features
-      processFeatures(featureTree, `project-${project.id}`, 0, 0, 800);
+      processFeatures(featureTree, `project-${project.id}`, 0, 0, 1200);
+
+      // Stack test nodes vertically after all nodes are created
+      stackTestNodes();
 
       console.log("Setting nodes:", allNodes);
       console.log("Setting edges:", allEdges);
@@ -229,8 +323,41 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
           ]);
 
         if (isMounted) {
+          // Log the raw test data
+          console.log("Raw tests data:", testsData);
+
+          // Check the format of test data
+          if (testsData.length > 0) {
+            console.log("Sample test:", testsData[0]);
+            console.log("Test featureId type:", typeof testsData[0].featureId);
+          }
+
+          // Extract all features including sub-features from the tree
+          const allFeatures: Feature[] = [];
+
+          // Function to recursively extract features from the tree
+          const extractFeatures = (features: FeatureWithChildren[]) => {
+            features.forEach((feature) => {
+              // Add the feature itself
+              allFeatures.push({
+                ...feature,
+                id: String(feature.id),
+              });
+
+              // Process children recursively
+              if (feature.children && feature.children.length > 0) {
+                extractFeatures(feature.children);
+              }
+            });
+          };
+
+          // Process the feature tree to get all features
+          extractFeatures(featureTreeData);
+
+          console.log("All extracted features:", allFeatures);
+
           setTestCases(testCasesData);
-          setFeatures(featuresData);
+          setFeatures(allFeatures);
           setFeatureTree(featureTreeData);
           setTests(testsData);
         }
@@ -272,7 +399,13 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
     } else if (node.type === "featureNode" || node.type === "subFeatureNode") {
       // Open feature sidebar when clicking on feature nodes
       setInitialFeatureTab(0); // Set to Details tab
-      handleFeatureClick(node.id);
+
+      // For feature nodes, use the feature ID from node data instead of node ID
+      if (node.data && node.data.feature && node.data.feature.id) {
+        handleFeatureClick(node.data.feature.id.toString());
+      } else {
+        handleFeatureClick(node.id);
+      }
     } else if (node.type === "testNode") {
       // For test nodes, open the dedicated test cases sidebar
       if (node.data.featureId) {
@@ -317,10 +450,41 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
   };
 
   const handleFeatureClick = (featureId: string) => {
-    const feature = features.find((f) => f.id.toString() === featureId);
+    console.log(
+      "handleFeatureClick called with featureId:",
+      featureId,
+      "type:",
+      typeof featureId
+    );
+
+    // Convert featureId to number for comparison with backend data
+    const featureIdNum = parseInt(featureId, 10);
+    console.log("Converted to number:", featureIdNum);
+
+    // Find feature by comparing with both string and number IDs
+    const feature = features.find((f) => {
+      // Convert both IDs to strings for comparison
+      const fIdStr = f.id.toString();
+      const searchIdStr = featureId.toString();
+
+      // Also try numeric comparison if possible
+      const fIdNum =
+        typeof f.id === "number" ? f.id : parseInt(f.id.toString(), 10);
+
+      return fIdStr === searchIdStr || fIdNum === featureIdNum;
+    });
+
+    console.log("Found feature:", feature);
+
     if (feature) {
       setSelectedFeature(feature);
       setIsFeatureSidebarOpen(true);
+    } else {
+      console.error("Feature not found with ID:", featureId);
+      console.error(
+        "Available features:",
+        features.map((f) => `${f.id} (${typeof f.id})`)
+      );
     }
   };
 
@@ -399,7 +563,31 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
         featureService.getProjectFeatureTree(project.id),
       ]);
 
-      setFeatures(updatedFeatures);
+      // Extract all features including sub-features from the tree
+      const allFeatures: Feature[] = [];
+
+      // Function to recursively extract features from the tree
+      const extractFeatures = (features: FeatureWithChildren[]) => {
+        features.forEach((feature) => {
+          // Add the feature itself
+          allFeatures.push({
+            ...feature,
+            id: String(feature.id),
+          });
+
+          // Process children recursively
+          if (feature.children && feature.children.length > 0) {
+            extractFeatures(feature.children);
+          }
+        });
+      };
+
+      // Process the feature tree to get all features
+      extractFeatures(updatedFeatureTree);
+
+      console.log("Updated all features:", allFeatures);
+
+      setFeatures(allFeatures);
       setFeatureTree(updatedFeatureTree);
     } catch (error) {
       console.error("Error refreshing features:", error);

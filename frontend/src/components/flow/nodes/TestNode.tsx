@@ -52,11 +52,28 @@ export const TestNode = memo(({ data }: NodeProps<TestNodeData>) => {
       </div>
       <div className="test-node-subtitle">Click to view tests</div>
 
+      {/* Left handle for horizontal connections */}
       <Handle
         type="target"
         position={Position.Left}
         style={{ background: "#fff", border: "1px solid #ddd" }}
         isConnectable={true}
+      />
+
+      {/* Top and bottom handles for vertical connections between stacked nodes */}
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        style={{ background: "#fff", border: "1px solid #ddd" }}
+        isConnectable={true}
+        id="bottom"
+      />
+      <Handle
+        type="target"
+        position={Position.Top}
+        style={{ background: "#fff", border: "1px solid #ddd" }}
+        isConnectable={true}
+        id="top"
       />
     </div>
   );

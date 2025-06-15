@@ -10,10 +10,27 @@ interface SubFeatureNodeProps extends NodeProps {
   };
 }
 
-export const SubFeatureNode: React.FC<SubFeatureNodeProps> = ({ data }) => {
+export const SubFeatureNode: React.FC<SubFeatureNodeProps> = ({ data, id }) => {
   const handleClick = () => {
     if (data.onClick) {
-      data.onClick(data.feature.id);
+      // Ensure we have a valid feature ID
+      if (!data.feature || !data.feature.id) {
+        console.error("SubFeatureNode missing feature ID:", data);
+        return;
+      }
+
+      // Make sure we're using a string ID
+      const featureId = data.feature.id.toString();
+      console.log(
+        "SubFeatureNode click - feature ID:",
+        featureId,
+        "type:",
+        typeof featureId
+      );
+      console.log("Node ID:", id, "Feature:", data.feature);
+
+      // Pass the feature ID as a string
+      data.onClick(featureId);
     }
   };
 

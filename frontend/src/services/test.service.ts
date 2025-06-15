@@ -40,6 +40,8 @@ class TestService {
   async getAllTests(): Promise<Test[]> {
     try {
       const response = await apiClient.get(this.apiUrl);
+      console.log("Raw test API response:", response.data);
+
       return response.data.map((test: any) => ({
         id: test.id.toString(),
         name: test.name,
