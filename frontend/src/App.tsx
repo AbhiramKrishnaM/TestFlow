@@ -19,7 +19,6 @@ import { Register } from "./pages/auth/Register";
 import { Dashboard } from "./pages/dashboard/Dashboard";
 import { Projects } from "./pages/projects/Projects";
 import { ProjectDetail } from "./pages/projects/ProjectDetail";
-import { TestCases } from "./pages/testcases/TestCases";
 
 function App() {
   return (
@@ -41,7 +40,6 @@ function App() {
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/projects" element={<Projects />} />
                   <Route path="/projects/:id" element={<ProjectDetail />} />
-                  <Route path="/testcases" element={<TestCases />} />
                 </Route>
               </Route>
 
