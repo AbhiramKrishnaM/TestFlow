@@ -28,7 +28,8 @@ interface ProjectSidebarProps {
   onClose: () => void;
   onAddFeature: (
     featureName: string,
-    description?: string
+    description?: string,
+    parentId?: number
   ) => Promise<Feature | null>;
   onFeaturesUpdated?: () => Promise<void>;
 }
@@ -61,8 +62,10 @@ export const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
 
   const loadFeatures = async () => {
     try {
+      // Only load root features (those with no parent)
       const projectFeatures = await featureService.getProjectFeatures(
-        project.id
+        project.id,
+        null
       );
       setFeatures(projectFeatures);
     } catch (error) {
@@ -229,9 +232,40 @@ export const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
 
       {/* Features Section */}
       <Box mb={3}>
-        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-          Features
-        </Typography>
+        <Box
+          display="flex"
+          justifyContent="space-between"
+          alignItems="center"
+          mb={1}
+        >
+          <Typography variant="subtitle2" color="text.secondary">
+            Features
+          </Typography>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={handleAddFeatureClick}
+            startIcon={
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                width="16"
+                height="16"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                />
+              </svg>
+            }
+          >
+            Add
+          </Button>
+        </Box>
         {features.length > 0 ? (
           <List dense>
             {features.map((feature) => (
@@ -329,34 +363,6 @@ export const ProjectSidebar: React.FC<ProjectSidebarProps> = ({
             ? new Date(project.updated_at).toLocaleDateString()
             : "N/A"}
         </Typography>
-      </Box>
-
-      <Box mt="auto" pt={2} borderTop="1px solid #e0e0e0">
-        <Button
-          variant="contained"
-          color="primary"
-          fullWidth
-          startIcon={
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              width="20"
-              height="20"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-              />
-            </svg>
-          }
-          onClick={handleAddFeatureClick}
-        >
-          Add Feature
-        </Button>
       </Box>
 
       {/* Add Feature Modal */}

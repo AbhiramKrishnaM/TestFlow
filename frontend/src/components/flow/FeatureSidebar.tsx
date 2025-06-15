@@ -14,16 +14,21 @@ import {
   Paper,
   CircularProgress,
   Tooltip,
+  Tab,
+  Tabs,
 } from "@mui/material";
-import { Feature } from "../../services/feature.service";
+import { Feature, featureService } from "../../services/feature.service";
 import { Test } from "./nodes/TestNode";
 import { testService } from "../../services/test.service";
+import { useSnackbar } from "../../contexts/SnackbarContext";
 
 interface FeatureSidebarProps {
   feature: Feature | null;
   isOpen: boolean;
   onClose: () => void;
   onTestsUpdated: (updatedTest?: Test, isDelete?: boolean) => void;
+  onFeaturesUpdated?: () => Promise<void>;
+  initialTab?: number;
 }
 
 export const FeatureSidebar: React.FC<FeatureSidebarProps> = ({
@@ -31,11 +36,31 @@ export const FeatureSidebar: React.FC<FeatureSidebarProps> = ({
   isOpen,
   onClose,
   onTestsUpdated,
+  onFeaturesUpdated,
+  initialTab = 0,
 }) => {
   const [tests, setTests] = useState<Test[]>([]);
   const [loading, setLoading] = useState(false);
   const [newTestName, setNewTestName] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState(initialTab);
+  const [featureName, setFeatureName] = useState("");
+  const [featureDescription, setFeatureDescription] = useState("");
+  const [newSubFeatureName, setNewSubFeatureName] = useState("");
+  const [newSubFeatureDescription, setNewSubFeatureDescription] = useState("");
+  const [subFeatures, setSubFeatures] = useState<Feature[]>([]);
+  const { showSnackbar } = useSnackbar();
+
+  // Initialize form fields and active tab when feature or initialTab changes
+  useEffect(() => {
+    if (feature) {
+      setFeatureName(feature.name);
+      setFeatureDescription(feature.description || "");
+    }
+    if (initialTab !== undefined) {
+      setActiveTab(initialTab);
+    }
+  }, [feature, initialTab]);
 
   // Fetch tests for the feature
   useEffect(() => {
@@ -76,6 +101,39 @@ export const FeatureSidebar: React.FC<FeatureSidebarProps> = ({
     };
   }, [isOpen, feature?.id]); // Only depend on feature.id, not the entire feature object
 
+  // Fetch sub-features
+  useEffect(() => {
+    let isMounted = true;
+    const fetchSubFeatures = async () => {
+      if (!feature) return;
+
+      try {
+        console.log("Fetching sub-features for feature:", feature.id);
+        const childFeatures = await featureService.getProjectFeatures(
+          feature.project_id,
+          parseInt(feature.id)
+        );
+        if (isMounted) {
+          setSubFeatures(childFeatures);
+        }
+      } catch (error) {
+        console.error("Error fetching sub-features:", error);
+      }
+    };
+
+    if (isOpen && feature) {
+      fetchSubFeatures();
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, feature]);
+
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setActiveTab(newValue);
+  };
+
   const handleAddTest = async () => {
     if (!feature || !newTestName.trim()) return;
 
@@ -90,9 +148,11 @@ export const FeatureSidebar: React.FC<FeatureSidebarProps> = ({
         setTests([...tests, newTest]);
         setNewTestName("");
         onTestsUpdated(newTest);
+        showSnackbar("Test added successfully", "success");
       }
     } catch (error) {
       console.error("Error adding test:", error);
+      showSnackbar("Failed to add test", "error");
     } finally {
       setSubmitting(false);
     }
@@ -109,6 +169,7 @@ export const FeatureSidebar: React.FC<FeatureSidebarProps> = ({
       }
     } catch (error) {
       console.error("Error toggling test status:", error);
+      showSnackbar("Failed to update test status", "error");
     }
   };
 
@@ -123,9 +184,89 @@ export const FeatureSidebar: React.FC<FeatureSidebarProps> = ({
         } else {
           onTestsUpdated();
         }
+        showSnackbar("Test deleted successfully", "success");
       }
     } catch (error) {
       console.error("Error deleting test:", error);
+      showSnackbar("Failed to delete test", "error");
+    }
+  };
+
+  const handleUpdateFeature = async () => {
+    if (!feature || !featureName.trim()) return;
+
+    setSubmitting(true);
+    try {
+      const updatedFeature = await featureService.updateFeature(
+        feature.id.toString(),
+        {
+          name: featureName.trim(),
+          description: featureDescription.trim() || undefined,
+        }
+      );
+
+      if (updatedFeature) {
+        showSnackbar("Feature updated successfully", "success");
+
+        // Notify parent component to update the flow
+        if (onFeaturesUpdated) {
+          await onFeaturesUpdated();
+        }
+      }
+    } catch (error) {
+      console.error("Error updating feature:", error);
+      showSnackbar("Failed to update feature", "error");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleAddSubFeature = async () => {
+    if (!feature || !newSubFeatureName.trim()) return;
+
+    setSubmitting(true);
+    try {
+      const newSubFeature = await featureService.createFeature({
+        name: newSubFeatureName.trim(),
+        description: newSubFeatureDescription.trim() || undefined,
+        project_id: feature.project_id,
+        parent_id: parseInt(feature.id),
+      });
+
+      if (newSubFeature) {
+        setSubFeatures([...subFeatures, newSubFeature]);
+        setNewSubFeatureName("");
+        setNewSubFeatureDescription("");
+        showSnackbar("Sub-feature added successfully", "success");
+
+        // Notify parent component to update the flow
+        if (onFeaturesUpdated) {
+          await onFeaturesUpdated();
+        }
+      }
+    } catch (error) {
+      console.error("Error adding sub-feature:", error);
+      showSnackbar("Failed to add sub-feature", "error");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteSubFeature = async (subFeatureId: string) => {
+    try {
+      const success = await featureService.deleteFeature(subFeatureId);
+      if (success) {
+        setSubFeatures(subFeatures.filter((sf) => sf.id !== subFeatureId));
+        showSnackbar("Sub-feature deleted successfully", "success");
+
+        // Notify parent component to update the flow
+        if (onFeaturesUpdated) {
+          await onFeaturesUpdated();
+        }
+      }
+    } catch (error) {
+      console.error("Error deleting sub-feature:", error);
+      showSnackbar("Failed to delete sub-feature", "error");
     }
   };
 
@@ -165,119 +306,256 @@ export const FeatureSidebar: React.FC<FeatureSidebarProps> = ({
             </IconButton>
           </Box>
 
-          {feature.description && (
-            <Typography variant="body2" color="text.secondary" mb={3}>
-              {feature.description}
-            </Typography>
+          <Tabs value={activeTab} onChange={handleTabChange} sx={{ mb: 2 }}>
+            <Tab label="Details" />
+            <Tab label="Tests" />
+            <Tab label="Sub-Features" />
+          </Tabs>
+
+          {/* Feature Details Tab */}
+          {activeTab === 0 && (
+            <Box>
+              <TextField
+                fullWidth
+                label="Feature Name"
+                variant="outlined"
+                size="small"
+                value={featureName}
+                onChange={(e) => setFeatureName(e.target.value)}
+                disabled={submitting}
+                margin="normal"
+              />
+              <TextField
+                fullWidth
+                label="Description"
+                variant="outlined"
+                size="small"
+                value={featureDescription}
+                onChange={(e) => setFeatureDescription(e.target.value)}
+                disabled={submitting}
+                multiline
+                rows={4}
+                margin="normal"
+              />
+              <Button
+                variant="contained"
+                color="primary"
+                fullWidth
+                sx={{ mt: 2 }}
+                onClick={handleUpdateFeature}
+                disabled={!featureName.trim() || submitting}
+              >
+                {submitting ? <CircularProgress size={24} /> : "Update Feature"}
+              </Button>
+            </Box>
           )}
 
-          <Divider sx={{ my: 2 }} />
+          {/* Tests Tab */}
+          {activeTab === 1 && (
+            <>
+              <Box mb={3}>
+                <TextField
+                  fullWidth
+                  label="Test Name"
+                  variant="outlined"
+                  size="small"
+                  value={newTestName}
+                  onChange={(e) => setNewTestName(e.target.value)}
+                  disabled={submitting}
+                />
+                <Button
+                  variant="contained"
+                  color="primary"
+                  fullWidth
+                  sx={{ mt: 1 }}
+                  onClick={handleAddTest}
+                  disabled={!newTestName.trim() || submitting}
+                >
+                  {submitting ? <CircularProgress size={24} /> : "Add Test"}
+                </Button>
+              </Box>
 
-          <Typography variant="h6" mb={2}>
-            Tests
-          </Typography>
-
-          <Box mb={3}>
-            <TextField
-              fullWidth
-              label="Test Name"
-              variant="outlined"
-              size="small"
-              value={newTestName}
-              onChange={(e) => setNewTestName(e.target.value)}
-              disabled={submitting}
-            />
-            <Button
-              variant="contained"
-              color="primary"
-              fullWidth
-              sx={{ mt: 1 }}
-              onClick={handleAddTest}
-              disabled={!newTestName.trim() || submitting}
-            >
-              {submitting ? <CircularProgress size={24} /> : "Add Test"}
-            </Button>
-          </Box>
-
-          {loading ? (
-            <Box display="flex" justifyContent="center" my={4}>
-              <CircularProgress />
-            </Box>
-          ) : tests.length > 0 ? (
-            <Paper variant="outlined" sx={{ maxHeight: 400, overflow: "auto" }}>
-              <List dense>
-                {tests.map((test) => (
-                  <ListItem
-                    key={test.id}
-                    button
-                    onClick={() => handleToggleTestStatus(test.id)}
-                  >
-                    <Box display="flex" alignItems="center" mr={1}>
-                      {test.tested ? (
-                        <Box
-                          sx={{
-                            width: 10,
-                            height: 10,
-                            borderRadius: "50%",
-                            bgcolor: "success.main",
-                          }}
-                        />
-                      ) : (
-                        <Box
-                          sx={{
-                            width: 10,
-                            height: 10,
-                            borderRadius: "50%",
-                            bgcolor: "error.main",
-                            animation: "blink 1.5s infinite",
-                          }}
-                        />
-                      )}
-                    </Box>
-                    <ListItemText
-                      primary={test.name}
-                      secondary={test.tested ? "Tested" : "Not tested"}
-                    />
-                    <ListItemSecondaryAction>
-                      <Tooltip title="Delete test">
-                        <IconButton
-                          edge="end"
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteTest(test.id);
-                          }}
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            className="h-5 w-5"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              {loading ? (
+                <Box display="flex" justifyContent="center" my={4}>
+                  <CircularProgress />
+                </Box>
+              ) : tests.length > 0 ? (
+                <Paper
+                  variant="outlined"
+                  sx={{ maxHeight: 400, overflow: "auto" }}
+                >
+                  <List dense>
+                    {tests.map((test) => (
+                      <ListItem
+                        key={test.id}
+                        button
+                        onClick={() => handleToggleTestStatus(test.id)}
+                      >
+                        <Box display="flex" alignItems="center" mr={1}>
+                          {test.tested ? (
+                            <Box
+                              sx={{
+                                width: 10,
+                                height: 10,
+                                borderRadius: "50%",
+                                bgcolor: "success.main",
+                              }}
                             />
-                          </svg>
-                        </IconButton>
-                      </Tooltip>
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                ))}
-              </List>
-            </Paper>
-          ) : (
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              textAlign="center"
-              py={4}
-            >
-              No tests added for this feature yet.
-            </Typography>
+                          ) : (
+                            <Box
+                              sx={{
+                                width: 10,
+                                height: 10,
+                                borderRadius: "50%",
+                                bgcolor: "error.main",
+                                animation: "blink 1.5s infinite",
+                              }}
+                            />
+                          )}
+                        </Box>
+                        <ListItemText
+                          primary={test.name}
+                          secondary={test.tested ? "Tested" : "Not tested"}
+                        />
+                        <ListItemSecondaryAction>
+                          <Tooltip title="Delete test">
+                            <IconButton
+                              edge="end"
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteTest(test.id);
+                              }}
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                className="h-5 w-5"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                />
+                              </svg>
+                            </IconButton>
+                          </Tooltip>
+                        </ListItemSecondaryAction>
+                      </ListItem>
+                    ))}
+                  </List>
+                </Paper>
+              ) : (
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  textAlign="center"
+                  py={4}
+                >
+                  No tests added for this feature yet.
+                </Typography>
+              )}
+            </>
+          )}
+
+          {/* Sub-Features Tab */}
+          {activeTab === 2 && (
+            <>
+              <Box mb={3}>
+                <TextField
+                  fullWidth
+                  label="Sub-Feature Name"
+                  variant="outlined"
+                  size="small"
+                  value={newSubFeatureName}
+                  onChange={(e) => setNewSubFeatureName(e.target.value)}
+                  disabled={submitting}
+                  margin="normal"
+                />
+                <TextField
+                  fullWidth
+                  label="Description"
+                  variant="outlined"
+                  size="small"
+                  value={newSubFeatureDescription}
+                  onChange={(e) => setNewSubFeatureDescription(e.target.value)}
+                  disabled={submitting}
+                  multiline
+                  rows={2}
+                  margin="normal"
+                />
+                <Button
+                  variant="contained"
+                  color="primary"
+                  fullWidth
+                  sx={{ mt: 1 }}
+                  onClick={handleAddSubFeature}
+                  disabled={!newSubFeatureName.trim() || submitting}
+                >
+                  {submitting ? (
+                    <CircularProgress size={24} />
+                  ) : (
+                    "Add Sub-Feature"
+                  )}
+                </Button>
+              </Box>
+
+              {subFeatures.length > 0 ? (
+                <Paper
+                  variant="outlined"
+                  sx={{ maxHeight: 400, overflow: "auto" }}
+                >
+                  <List dense>
+                    {subFeatures.map((subFeature) => (
+                      <ListItem key={subFeature.id}>
+                        <ListItemText
+                          primary={subFeature.name}
+                          secondary={subFeature.description || "No description"}
+                        />
+                        <ListItemSecondaryAction>
+                          <Tooltip title="Delete sub-feature">
+                            <IconButton
+                              edge="end"
+                              size="small"
+                              onClick={() =>
+                                handleDeleteSubFeature(subFeature.id)
+                              }
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                className="h-5 w-5"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                />
+                              </svg>
+                            </IconButton>
+                          </Tooltip>
+                        </ListItemSecondaryAction>
+                      </ListItem>
+                    ))}
+                  </List>
+                </Paper>
+              ) : (
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  textAlign="center"
+                  py={4}
+                >
+                  No sub-features added yet.
+                </Typography>
+              )}
+            </>
           )}
         </>
       ) : (

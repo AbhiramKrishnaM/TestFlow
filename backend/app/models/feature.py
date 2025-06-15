@@ -10,9 +10,16 @@ class Feature(Base):
     name = Column(String, index=True)
     description = Column(Text, nullable=True)
     project_id = Column(Integer, ForeignKey("projects.id"))
+    parent_id = Column(Integer, ForeignKey("features.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
     project = relationship("Project", back_populates="features")
-    tests = relationship("Test", back_populates="feature", cascade="all, delete-orphan") 
+    tests = relationship("Test", back_populates="feature", cascade="all, delete-orphan")
+    
+    # Self-referential relationship
+    children = relationship("Feature", 
+                           backref="parent",
+                           remote_side=[id],
+                           cascade="all") 

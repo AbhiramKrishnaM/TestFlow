@@ -12,19 +12,32 @@ export interface Test {
 interface TestNodeData {
   label: string;
   test: Test;
+  testCount?: number;
+  featureId?: string;
+  onClick?: () => void;
 }
 
 export const TestNode = memo(({ data }: NodeProps<TestNodeData>) => {
+  const handleClick = () => {
+    if (data.onClick) {
+      data.onClick();
+    }
+  };
+
+  // Calculate how many tests are untested
+  const isMultipleTests = data.testCount && data.testCount > 1;
+  const showBlinkingDot = !data.test.tested;
+
   return (
-    <div className="px-4 py-2 shadow-md rounded-lg bg-white border border-gray-200 min-w-[150px] relative">
-      <div className="flex items-center">
-        <div className="rounded-full bg-blue-100 p-1 mr-2">
+    <div className="test-node-container" onClick={handleClick}>
+      <div className="test-node-content">
+        <div className="test-node-icon">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
-            className="h-4 w-4 text-blue-500"
+            className="h-5 w-5"
           >
             <path
               strokeLinecap="round"
@@ -34,19 +47,14 @@ export const TestNode = memo(({ data }: NodeProps<TestNodeData>) => {
             />
           </svg>
         </div>
-        <div className="font-medium">{data.label}</div>
-
-        {/* Blinking red dot for untested tests */}
-        {!data.test.tested && (
-          <div className="ml-2">
-            <div className="blink-dot"></div>
-          </div>
-        )}
+        <div className="test-node-label">{data.label}</div>
+        {showBlinkingDot && <div className="test-node-status"></div>}
       </div>
+      <div className="test-node-subtitle">Click to view tests</div>
 
       <Handle
         type="target"
-        position={Position.Top}
+        position={Position.Left}
         style={{ background: "#fff", border: "1px solid #ddd" }}
         isConnectable={true}
       />

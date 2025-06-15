@@ -18,15 +18,22 @@ import { Project } from "../../services/project.service";
 import { RootNode } from "./nodes/RootNode";
 import { TestCaseNode } from "./nodes/TestCaseNode";
 import { FeatureNode } from "./nodes/FeatureNode";
+
 import { FlowWrapper } from "./FlowWrapper";
 import { testCaseService, TestCase } from "../../services/testcase.service";
-import { featureService, Feature } from "../../services/feature.service";
+import {
+  featureService,
+  Feature,
+  FeatureWithChildren,
+} from "../../services/feature.service";
 import { ProjectSidebar } from "./ProjectSidebar";
 import { FeatureSidebar } from "./FeatureSidebar";
 import { useSnackbar } from "../../contexts/SnackbarContext";
 import { Box, Button } from "@mui/material";
 import { TestNode, Test } from "./nodes/TestNode";
 import { testService } from "../../services/test.service";
+import { SubFeatureNode } from "./nodes/SubFeatureNode";
+import { TestCasesSidebar } from "./TestCasesSidebar";
 
 interface ProjectFlowProps {
   project: Project;
@@ -39,6 +46,7 @@ const nodeTypes: NodeTypes = {
   rootNode: RootNode,
   testCaseNode: TestCaseNode,
   featureNode: FeatureNode,
+  subFeatureNode: SubFeatureNode,
   testNode: TestNode,
 };
 
@@ -62,11 +70,14 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [testCases, setTestCases] = useState<TestCase[]>([]);
   const [features, setFeatures] = useState<Feature[]>([]);
+  const [featureTree, setFeatureTree] = useState<FeatureWithChildren[]>([]);
   const [tests, setTests] = useState<Test[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isFeatureSidebarOpen, setIsFeatureSidebarOpen] = useState(false);
+  const [isTestCasesSidebarOpen, setIsTestCasesSidebarOpen] = useState(false);
   const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
+  const [initialFeatureTab, setInitialFeatureTab] = useState(0);
   const [reactFlowInstance, setReactFlowInstance] =
     useState<ReactFlowInstance | null>(null);
   const { showSnackbar } = useSnackbar();
@@ -75,13 +86,13 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
   const regenerateNodesAndEdges = useCallback(
     (
       project: Project,
-      features: Feature[],
+      featureTree: FeatureWithChildren[],
       testCases: TestCase[],
       tests: Test[]
     ) => {
       if (!project) return;
 
-      console.log("Regenerating nodes with features:", features);
+      console.log("Regenerating nodes with feature tree:", featureTree);
       console.log("Tests:", tests);
 
       // Create root node for the project
@@ -95,31 +106,40 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
       const allNodes: Node[] = [rootNode];
       const allEdges: Edge[] = [];
 
-      // Add feature nodes if they exist
-      if (features.length > 0) {
+      // Function to recursively process features and their children
+      const processFeatures = (
+        features: FeatureWithChildren[],
+        parentId: string,
+        level: number,
+        xStart: number,
+        xEnd: number
+      ) => {
+        if (features.length === 0) return;
+
+        const yPosition = 150 + level * 150; // Vertical position based on hierarchy level
+        const featureWidth = (xEnd - xStart) / features.length;
+
         features.forEach((feature, index) => {
-          // Position features in a row below the project node
-          const xOffset = (index - (features.length - 1) / 2) * 300;
-
-          // Ensure feature.id is a string
           const featureId = String(feature.id);
+          const xPosition = xStart + featureWidth * index + featureWidth / 2;
 
-          console.log(`Creating feature node for: ${featureId}`, feature);
-
+          // Create feature node
+          const nodeType = level === 0 ? "featureNode" : "subFeatureNode";
           const featureNode: Node = {
             id: featureId,
-            type: "featureNode",
+            type: nodeType,
             data: {
               label: feature.name,
               feature,
               onClick: (featureId: string) => handleFeatureClick(featureId),
             },
-            position: { x: 400 + xOffset, y: 250 },
+            position: { x: xPosition, y: yPosition },
           };
 
+          // Create edge from parent to this feature
           const edge: Edge = {
-            id: `edge-${rootNode.id}-${featureId}`,
-            source: rootNode.id,
+            id: `edge-${parentId}-${featureId}`,
+            source: parentId,
             target: featureId,
             animated: false,
           };
@@ -127,72 +147,60 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
           allNodes.push(featureNode);
           allEdges.push(edge);
 
+          // Process children recursively
+          if (feature.children && feature.children.length > 0) {
+            const childXStart = xPosition - featureWidth / 2;
+            const childXEnd = xPosition + featureWidth / 2;
+            processFeatures(
+              feature.children,
+              featureId,
+              level + 1,
+              childXStart,
+              childXEnd
+            );
+          }
+
           // Add test nodes for this feature
           const featureTests = tests.filter(
             (test) => test.featureId === featureId
           );
 
           if (featureTests.length > 0) {
-            featureTests.forEach((test, testIndex) => {
-              // Position tests in a row below the feature node
-              const testXOffset =
-                (testIndex - (featureTests.length - 1) / 2) * 150;
+            // Create a single test node that contains all tests for this feature
+            const testNode: Node = {
+              id: `tests-${featureId}`,
+              type: "testNode",
+              data: {
+                label: `Tests (${featureTests.length})`,
+                test: featureTests[0], // Pass the first test for now
+                testCount: featureTests.length,
+                featureId: featureId, // Store the feature ID to use when clicked
+              },
+              position: {
+                // Position test nodes to the right of the feature node with proper alignment
+                x: xPosition + 350,
+                y: yPosition - 40,
+              },
+            };
 
-              const testNode: Node = {
-                id: `test-${test.id}`,
-                type: "testNode",
-                data: {
-                  label: test.name,
-                  test,
-                },
-                position: { x: 400 + xOffset + testXOffset, y: 350 },
-              };
+            const testEdge: Edge = {
+              id: `edge-${featureId}-tests-${featureId}`,
+              source: featureId,
+              target: `tests-${featureId}`,
+              sourceHandle: null,
+              targetHandle: null,
+              animated: false,
+              type: "smoothstep",
+            };
 
-              const testEdge: Edge = {
-                id: `edge-${featureId}-test-${test.id}`,
-                source: featureId,
-                target: `test-${test.id}`,
-                animated: false,
-              };
-
-              allNodes.push(testNode);
-              allEdges.push(testEdge);
-            });
+            allNodes.push(testNode);
+            allEdges.push(testEdge);
           }
         });
-      }
+      };
 
-      // Add test case nodes if they exist
-      if (testCases.length > 0) {
-        const yPosition = features.length > 0 ? 450 : 250;
-
-        testCases.forEach((testCase, index) => {
-          // Position test cases in a row below the features or project node
-          const xOffset = (index - (testCases.length - 1) / 2) * 250;
-
-          const testCaseNode: Node = {
-            id: `testcase-${testCase.id}`,
-            type: "testCaseNode",
-            data: { label: testCase.title, testCase },
-            position: { x: 400 + xOffset, y: yPosition },
-          };
-
-          // If there are features, connect test cases to the first feature
-          // In a real app, you'd have a relationship between test cases and features
-          const sourceId =
-            features.length > 0 ? String(features[0].id) : rootNode.id;
-
-          const edge: Edge = {
-            id: `edge-${sourceId}-${testCaseNode.id}`,
-            source: sourceId,
-            target: testCaseNode.id,
-            animated: false,
-          };
-
-          allNodes.push(testCaseNode);
-          allEdges.push(edge);
-        });
-      }
+      // Start processing from root features
+      processFeatures(featureTree, `project-${project.id}`, 0, 0, 800);
 
       console.log("Setting nodes:", allNodes);
       console.log("Setting edges:", allEdges);
@@ -212,15 +220,18 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
       setLoading(true);
       try {
         console.log("Fetching data for project:", project.id);
-        const [testCasesData, featuresData, testsData] = await Promise.all([
-          testCaseService.getProjectTestCases(project.id),
-          featureService.getProjectFeatures(project.id),
-          testService.getAllTests(),
-        ]);
+        const [testCasesData, featuresData, featureTreeData, testsData] =
+          await Promise.all([
+            testCaseService.getProjectTestCases(project.id),
+            featureService.getProjectFeatures(project.id),
+            featureService.getProjectFeatureTree(project.id),
+            testService.getAllTests(),
+          ]);
 
         if (isMounted) {
           setTestCases(testCasesData);
           setFeatures(featuresData);
+          setFeatureTree(featureTreeData);
           setTests(testsData);
         }
       } catch (error) {
@@ -242,19 +253,44 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
 
   // Generate the initial nodes and edges based on the project, features, and test cases
   useEffect(() => {
-    if (!project || loading) return;
+    if (!project || loading || featureTree.length === 0) return;
     console.log("Regenerating nodes and edges");
-    regenerateNodesAndEdges(project, features, testCases, tests);
-  }, [project, features, testCases, tests, regenerateNodesAndEdges, loading]);
+    regenerateNodesAndEdges(project, featureTree, testCases, tests);
+  }, [
+    project,
+    featureTree,
+    testCases,
+    tests,
+    regenerateNodesAndEdges,
+    loading,
+  ]);
 
   const handleNodeClick: NodeMouseHandler = (event, node) => {
-    // Only open sidebar when clicking on the project root node
+    // Open sidebar when clicking on different node types
     if (node.type === "rootNode") {
       setIsSidebarOpen(true);
+    } else if (node.type === "featureNode" || node.type === "subFeatureNode") {
+      // Open feature sidebar when clicking on feature nodes
+      setInitialFeatureTab(0); // Set to Details tab
+      handleFeatureClick(node.id);
     } else if (node.type === "testNode") {
-      // Toggle test status when clicking on a test node
-      const testId = node.id.replace("test-", "");
-      handleToggleTestStatus(testId);
+      // For test nodes, open the dedicated test cases sidebar
+      if (node.data.featureId) {
+        const feature = features.find(
+          (f) => f.id.toString() === node.data.featureId
+        );
+        if (feature) {
+          setSelectedFeature(feature);
+          setIsTestCasesSidebarOpen(true);
+        }
+      } else if (node.data.onClick) {
+        // If there's an onClick handler, use it
+        node.data.onClick();
+      } else {
+        // Otherwise toggle test status
+        const testId = node.id.replace("test-", "");
+        handleToggleTestStatus(testId);
+      }
     }
   };
 
@@ -321,13 +357,15 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
 
   const handleAddFeature = async (
     featureName: string,
-    description?: string
+    description?: string,
+    parentId?: number
   ): Promise<Feature | null> => {
     try {
       const newFeature = await featureService.createFeature({
         name: featureName,
         description: description,
         project_id: project.id,
+        parent_id: parentId,
       });
 
       if (newFeature) {
@@ -335,9 +373,13 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
         const updatedFeatures = [...features, newFeature];
         setFeatures(updatedFeatures);
 
-        // Regenerate nodes and edges with the new feature
-        regenerateNodesAndEdges(project, updatedFeatures, testCases, tests);
+        // Refresh the feature tree
+        const updatedFeatureTree = await featureService.getProjectFeatureTree(
+          project.id
+        );
+        setFeatureTree(updatedFeatureTree);
 
+        // Show success message
         showSnackbar("Feature added successfully", "success");
         return newFeature;
       }
@@ -352,11 +394,13 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
   // Refresh features when they're updated in the sidebar
   const handleFeaturesUpdated = async () => {
     try {
-      const updatedFeatures = await featureService.getProjectFeatures(
-        project.id
-      );
+      const [updatedFeatures, updatedFeatureTree] = await Promise.all([
+        featureService.getProjectFeatures(project.id),
+        featureService.getProjectFeatureTree(project.id),
+      ]);
+
       setFeatures(updatedFeatures);
-      regenerateNodesAndEdges(project, updatedFeatures, testCases, tests);
+      setFeatureTree(updatedFeatureTree);
     } catch (error) {
       console.error("Error refreshing features:", error);
     }
@@ -427,6 +471,15 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
           feature={selectedFeature}
           isOpen={isFeatureSidebarOpen}
           onClose={() => setIsFeatureSidebarOpen(false)}
+          onTestsUpdated={handleTestsUpdated}
+          onFeaturesUpdated={handleFeaturesUpdated}
+          initialTab={initialFeatureTab}
+        />
+
+        <TestCasesSidebar
+          feature={selectedFeature}
+          isOpen={isTestCasesSidebarOpen}
+          onClose={() => setIsTestCasesSidebarOpen(false)}
           onTestsUpdated={handleTestsUpdated}
         />
       </div>
