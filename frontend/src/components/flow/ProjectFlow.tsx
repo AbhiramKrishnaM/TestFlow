@@ -530,11 +530,12 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
         });
       };
 
-      // Start processing from root features
-      processFeatures(featureTree, `project-${project.id}`, 0, 0, 1200);
-
-      // Stack test nodes vertically after all nodes are created
-      stackTestNodes();
+      // Start processing from root features if they exist
+      if (featureTree && featureTree.length > 0) {
+        processFeatures(featureTree, `project-${project.id}`, 0, 0, 1200);
+        // Stack test nodes vertically after all nodes are created
+        stackTestNodes();
+      }
 
       console.log("Setting nodes:", allNodes);
       console.log("Setting edges:", allEdges);
@@ -673,7 +674,7 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
 
   // Generate the initial nodes and edges based on the project, features, and test cases
   useEffect(() => {
-    if (!project || loading || featureTree.length === 0) return;
+    if (!project || loading) return;
 
     // Only regenerate nodes if we have positions or this is the first load
     const positionCount = Object.keys(savedNodePositions).length;
