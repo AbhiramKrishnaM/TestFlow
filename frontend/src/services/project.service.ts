@@ -26,6 +26,7 @@ class ProjectService {
   private projectsCache: Project[] | null = null;
   private projectCache: Map<number, Project> = new Map();
   private fetchingProjects = false;
+  private lastFetchTime = 0;
 
   async getProjects(): Promise<Project[]> {
     // Return cached projects if available
@@ -54,6 +55,7 @@ class ProjectService {
       console.log("Fetching projects from API");
       const response = await axios.get<Project[]>(`${API_URL}/projects`);
       this.projectsCache = response.data;
+      this.lastFetchTime = Date.now();
       return response.data;
     } catch (error) {
       console.error("Error fetching projects:", error);
@@ -223,6 +225,11 @@ class ProjectService {
       console.error(`Error fetching members for project ${projectId}:`, error);
       return [];
     }
+  }
+
+  // Get the timestamp of when projects were last fetched
+  getLastFetchTime(): number {
+    return this.lastFetchTime;
   }
 
   // Method to clear cache (useful for testing or after logout)

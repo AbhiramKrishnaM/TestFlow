@@ -135,9 +135,8 @@ export const ProjectDetail: React.FC = () => {
     try {
       const success = await projectService.deleteProject(project.id);
       if (success) {
-        await fetchProjects(true);
         showSnackbar("Project deleted successfully", "success");
-        navigate("/projects");
+        navigate("/projects", { state: { fromProjectDetail: true } });
       }
     } catch (err) {
       console.error("Error deleting project:", err);

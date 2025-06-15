@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Typography,
   Card,
@@ -14,9 +14,26 @@ import { useProjects } from "../../layouts/DashboardLayout";
 
 export function Projects() {
   const navigate = useNavigate();
-  const { projects, setProjects, loading } = useProjects();
+  const location = useLocation();
+  const { projects, setProjects, loading, fetchProjects } = useProjects();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { showSnackbar } = useSnackbar();
+  const [localLoading, setLocalLoading] = useState(false);
+
+  // Check if we need to refresh projects when coming from a project detail page
+  // This helps ensure the list is up-to-date after a deletion
+  useEffect(() => {
+    const checkForUpdates = async () => {
+      // If we're coming from a project detail page (likely after deletion)
+      if (location.state && location.state.fromProjectDetail) {
+        setLocalLoading(true);
+        await fetchProjects(true);
+        setLocalLoading(false);
+      }
+    };
+
+    checkForUpdates();
+  }, [location]);
 
   const handleAddProject = async (name: string, description: string) => {
     try {
@@ -43,7 +60,7 @@ export function Projects() {
   };
 
   // If loading, show a loading spinner
-  if (loading) {
+  if (loading || localLoading) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-150px)]">
         <CircularProgress size={40} />

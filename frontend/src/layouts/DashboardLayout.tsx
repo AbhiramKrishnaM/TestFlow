@@ -35,27 +35,6 @@ export const ProjectContext = createContext<ProjectContextType>({
 
 export const useProjects = () => useContext(ProjectContext);
 
-// Title component that updates based on the current route
-function PageTitle() {
-  const location = useLocation();
-  const path = location.pathname;
-
-  let title = "Dashboard";
-  if (path === "/projects") {
-    title = "Projects";
-  } else if (path.match(/^\/projects\/\d+$/)) {
-    title = "Project Details";
-  } else if (path === "/testcases") {
-    title = "Test Cases";
-  }
-
-  return (
-    <Typography variant="h4" className="font-bold text-gray-800 mb-6">
-      {title}
-    </Typography>
-  );
-}
-
 export function DashboardLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -85,21 +64,31 @@ export function DashboardLayout() {
     }
   };
 
+  // Initial fetch of projects
   useEffect(() => {
     if (user) {
       fetchProjects();
     }
   }, [user]);
 
-  // Refresh projects when navigating to the projects page
+  // More selective refresh strategy for smoother navigation
   useEffect(() => {
+    // Only refresh projects in specific cases:
+    // 1. When navigating to the projects page and we don't have projects loaded yet
+    // 2. When navigating to the projects page from a state that indicates we need a refresh
+    const needsRefresh = location.state && location.state.fromProjectDetail;
+
     if (
-      location.pathname === "/projects" ||
-      location.pathname === "/dashboard"
+      (location.pathname === "/projects" && !projectsLoadedRef.current) ||
+      needsRefresh
     ) {
-      fetchProjects(true); // Force refresh when navigating to these pages
+      // Clear location state after using it
+      if (needsRefresh) {
+        window.history.replaceState({}, document.title);
+      }
+      fetchProjects();
     }
-  }, [location.pathname]);
+  }, [location.pathname, location.state]);
 
   const handleLogout = () => {
     logout();
