@@ -92,6 +92,9 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
   const [selectedNodeType, setSelectedNodeType] = useState<string | null>(null);
   const [selectedFeatureForNode, setSelectedFeatureForNode] =
     useState<Feature | null>(null);
+  const [selectedPriorityForTest, setSelectedPriorityForTest] = useState<
+    "high" | "low" | "normal" | null
+  >(null);
 
   // Function to regenerate nodes and edges when features, tests, or test cases change
   const regenerateNodesAndEdges = useCallback(
@@ -215,19 +218,64 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
           );
 
           if (featureTests.length > 0) {
+            console.log("Tests for this feature:", featureTests);
+
+            // Group tests by priority
+            const highPriorityTests = featureTests.filter(
+              (test) => test.priority === "high"
+            );
+            const lowPriorityTests = featureTests.filter(
+              (test) => test.priority === "low"
+            );
+            const normalPriorityTests = featureTests.filter(
+              (test) => test.priority !== "high" && test.priority !== "low"
+            );
+
+            console.log("High priority tests:", highPriorityTests);
+            console.log("Low priority tests:", lowPriorityTests);
+            console.log("Normal priority tests:", normalPriorityTests);
+
             // Position test nodes to the right with more spacing
             const baseX = xPosition + 500; // Increased spacing to the right
             const baseY = yPosition; // Start at the same vertical position
 
-            // Create a single test node that contains all tests for this feature
-            const testNode: Node = {
+            // Create nodes for each priority type
+            const nodes: Node[] = [];
+            const edges: Edge[] = [];
+
+            // Create the main test node for all tests (or just normal if there are high/low priority tests)
+            const mainNodeLabel =
+              featureTests.length === normalPriorityTests.length
+                ? `Test Cases (${featureTests.length})`
+                : `Test Cases (${normalPriorityTests.length})`;
+
+            const mainTestNode: Node = {
               id: `tests-${featureId}`,
               type: "testNode",
               data: {
-                label: `Test Cases (${featureTests.length})`,
-                test: featureTests[0], // Pass the first test for now
-                testCount: featureTests.length,
-                featureId: featureId, // Store the feature ID to use when clicked
+                label: mainNodeLabel,
+                test:
+                  normalPriorityTests.length > 0
+                    ? normalPriorityTests[0]
+                    : featureTests[0],
+                testCount:
+                  normalPriorityTests.length > 0
+                    ? normalPriorityTests.length
+                    : featureTests.length,
+                featureId: featureId,
+                tests:
+                  normalPriorityTests.length > 0
+                    ? normalPriorityTests
+                    : featureTests,
+                onClick: () => {
+                  const feature = features.find(
+                    (f) => f.id.toString() === featureId
+                  );
+                  if (feature) {
+                    setSelectedFeature(feature);
+                    setIsTestCasesSidebarOpen(true);
+                  }
+                },
               },
               position: {
                 x: baseX,
@@ -235,8 +283,11 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
               },
             };
 
-            // Create a direct edge from feature to test node with explicit handles
-            const testEdge: Edge = {
+            // Add the main test node
+            nodes.push(mainTestNode);
+
+            // Create edge from feature to main test node
+            const mainEdge: Edge = {
               id: `edge-${featureId}-tests-${featureId}`,
               source: featureId,
               target: `tests-${featureId}`,
@@ -254,37 +305,149 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
                 height: 15,
                 color: "#555",
               },
-              // Add curvature to the bezier curve
               data: {
                 curvature: 0.5,
               },
             };
 
-            allNodes.push(testNode);
-            allEdges.push(testEdge);
+            edges.push(mainEdge);
+
+            // Create high priority node if there are high priority tests
+            if (highPriorityTests.length > 0) {
+              const highPriorityNode: Node = {
+                id: `high-priority-tests-${featureId}`,
+                type: "highPriorityTestNode",
+                data: {
+                  label: `High Priority (${highPriorityTests.length})`,
+                  test: highPriorityTests[0],
+                  testCount: highPriorityTests.length,
+                  featureId: featureId,
+                  tests: highPriorityTests,
+                  onClick: () => {
+                    // When clicked, open the sidebar with high priority pre-selected
+                    const feature = features.find(
+                      (f) => f.id.toString() === featureId
+                    );
+                    if (feature) {
+                      setSelectedFeature(feature);
+                      setSelectedPriorityForTest("high");
+                      setIsTestCasesSidebarOpen(true);
+                    }
+                  },
+                },
+                position: {
+                  x: baseX + 250, // Position to the right of main test node
+                  y: baseY - 80, // Position above the main test node
+                },
+              };
+
+              nodes.push(highPriorityNode);
+
+              // Create edge from main test node to high priority node
+              const highPriorityEdge: Edge = {
+                id: `edge-tests-${featureId}-high-priority-tests-${featureId}`,
+                source: `tests-${featureId}`,
+                target: `high-priority-tests-${featureId}`,
+                sourceHandle: "right",
+                targetHandle: "left",
+                type: "bezier",
+                animated: false,
+                style: {
+                  stroke: "#ef4444",
+                  strokeWidth: 1.5,
+                },
+                data: {
+                  curvature: 0.3,
+                },
+              };
+
+              edges.push(highPriorityEdge);
+            }
+
+            // Create low priority node if there are low priority tests
+            if (lowPriorityTests.length > 0) {
+              const lowPriorityNode: Node = {
+                id: `low-priority-tests-${featureId}`,
+                type: "lowPriorityTestNode",
+                data: {
+                  label: `Low Priority (${lowPriorityTests.length})`,
+                  test: lowPriorityTests[0],
+                  testCount: lowPriorityTests.length,
+                  featureId: featureId,
+                  tests: lowPriorityTests,
+                  onClick: () => {
+                    // When clicked, open the sidebar with low priority pre-selected
+                    const feature = features.find(
+                      (f) => f.id.toString() === featureId
+                    );
+                    if (feature) {
+                      setSelectedFeature(feature);
+                      setSelectedPriorityForTest("low");
+                      setIsTestCasesSidebarOpen(true);
+                    }
+                  },
+                },
+                position: {
+                  x: baseX + 250, // Position to the right of main test node
+                  y: baseY + 80, // Position below the main test node
+                },
+              };
+
+              nodes.push(lowPriorityNode);
+
+              // Create edge from main test node to low priority node
+              const lowPriorityEdge: Edge = {
+                id: `edge-tests-${featureId}-low-priority-tests-${featureId}`,
+                source: `tests-${featureId}`,
+                target: `low-priority-tests-${featureId}`,
+                sourceHandle: "right",
+                targetHandle: "left",
+                type: "bezier",
+                animated: false,
+                style: {
+                  stroke: "#3b82f6",
+                  strokeWidth: 1.5,
+                },
+                data: {
+                  curvature: 0.3,
+                },
+              };
+
+              edges.push(lowPriorityEdge);
+            }
+
+            // Add all nodes and edges to the flow
+            allNodes.push(...nodes);
+            allEdges.push(...edges);
           }
         });
       };
 
       // Separate function to create stacked test nodes
       const stackTestNodes = () => {
-        // Group test nodes by their x position
-        const nodesByX: { [key: number]: Node[] } = {};
+        // Group test nodes by their x position AND type
+        const nodesByXAndType: { [key: string]: Node[] } = {};
 
-        // First, collect all test nodes
-        const testNodes = allNodes.filter((node) => node.type === "testNode");
+        // First, collect all test nodes (including high and low priority)
+        const testNodes = allNodes.filter(
+          (node) =>
+            node.type === "testNode" ||
+            node.type === "highPriorityTestNode" ||
+            node.type === "lowPriorityTestNode"
+        );
 
-        // Group them by x position
+        // Group them by x position AND node type to prevent connections between different priority types
         testNodes.forEach((node) => {
           const x = Math.round(node.position.x / 10) * 10; // Round to nearest 10px for grouping
-          if (!nodesByX[x]) {
-            nodesByX[x] = [];
+          const key = `${x}-${node.type}`; // Create a unique key based on position and type
+          if (!nodesByXAndType[key]) {
+            nodesByXAndType[key] = [];
           }
-          nodesByX[x].push(node);
+          nodesByXAndType[key].push(node);
         });
 
         // Now reposition nodes in each group to stack vertically with spacing
-        Object.values(nodesByX).forEach((nodes) => {
+        Object.values(nodesByXAndType).forEach((nodes) => {
           if (nodes.length <= 1) return; // Skip if only one node
 
           // Sort nodes by their original y position
@@ -431,9 +594,25 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
       } else {
         handleFeatureClick(node.id);
       }
-    } else if (node.type === "testNode") {
+    } else if (
+      node.type === "testNode" ||
+      node.type === "highPriorityTestNode" ||
+      node.type === "lowPriorityTestNode"
+    ) {
       // For test nodes, open the dedicated test cases sidebar
-      if (node.data.featureId) {
+      if (node.data.onClick) {
+        // If there's an onClick handler, use it
+        node.data.onClick();
+      } else if (node.data.featureId) {
+        // Set the appropriate priority based on node type
+        if (node.type === "highPriorityTestNode") {
+          setSelectedPriorityForTest("high");
+        } else if (node.type === "lowPriorityTestNode") {
+          setSelectedPriorityForTest("low");
+        } else {
+          setSelectedPriorityForTest(null);
+        }
+
         const feature = features.find(
           (f) => f.id.toString() === node.data.featureId
         );
@@ -441,9 +620,6 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
           setSelectedFeature(feature);
           setIsTestCasesSidebarOpen(true);
         }
-      } else if (node.data.onClick) {
-        // If there's an onClick handler, use it
-        node.data.onClick();
       } else {
         // Otherwise toggle test status
         const testId = node.id.replace("test-", "");
@@ -656,101 +832,103 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
 
   // Add a new node to a feature
   const addNodeToFeature = async (feature: Feature, nodeType: string) => {
-    if (!feature || !feature.id) return;
-
     try {
-      // Create a test with the appropriate priority
+      // Create a new test based on node type
       const priority =
-        nodeType === "highPriorityTest"
+        nodeType === "highPriorityTestNode"
           ? "high"
-          : nodeType === "lowPriorityTest"
+          : nodeType === "lowPriorityTestNode"
           ? "low"
           : "normal";
 
-      const testName = `${
-        priority === "high"
-          ? "High Priority"
-          : priority === "low"
-          ? "Low Priority"
-          : "Regular"
-      } Test`;
-
-      // Create the test in the backend
       const newTest = await testService.createTest({
-        name: testName,
-        feature_id: parseInt(feature.id.toString(), 10),
-        priority: priority,
+        name: `New ${priority} priority test`,
+        feature_id: Number(feature.id),
+        priority,
       });
 
       if (newTest) {
-        // Refresh tests
-        await handleTestsUpdated(newTest);
+        // Add the new test to the tests state
+        const updatedTests = [...tests, newTest];
+        setTests(updatedTests);
 
-        // Create a new node
-        const featureNode = nodes.find(
-          (node) =>
-            node.id === feature.id.toString() ||
-            (node.data?.feature?.id &&
-              node.data.feature.id.toString() === feature.id.toString())
-        );
+        // Create a new node for the test
+        const baseX = 500; // Position to the right of feature nodes
+        const baseY = 150; // Default y position
 
-        if (featureNode) {
-          // Position the new node to the right of the feature
-          const nodeX = featureNode.position.x + 400;
-          const nodeY = featureNode.position.y;
+        // Create node based on type
+        let newNode: Node;
 
-          // Determine node type
-          const flowNodeType =
-            nodeType === "highPriorityTest"
-              ? "highPriorityTestNode"
-              : nodeType === "lowPriorityTest"
-              ? "lowPriorityTestNode"
-              : "testNode";
-
-          // Create the new node
-          const newNode: Node = {
-            id: `${nodeType}-${newTest.id}`,
-            type: flowNodeType,
+        if (nodeType === "highPriorityTestNode") {
+          newNode = {
+            id: `test-${newTest.id}`,
+            type: "highPriorityTestNode",
             data: {
-              label: `${testName} (1)`,
+              label: newTest.name,
               test: newTest,
-              testCount: 1,
               featureId: feature.id.toString(),
+              tests: [newTest], // Pass the test as an array for preview
             },
-            position: { x: nodeX, y: nodeY },
+            position: { x: baseX, y: baseY },
           };
-
-          // Create edge from feature to new node
-          const newEdge: Edge = {
-            id: `edge-${feature.id}-${newNode.id}`,
-            source: feature.id.toString(),
-            target: newNode.id,
-            sourceHandle: "right",
-            targetHandle: "left",
-            type: "bezier",
-            animated: false,
-            style: {
-              stroke: "#555",
-              strokeWidth: 1.5,
+        } else if (nodeType === "lowPriorityTestNode") {
+          newNode = {
+            id: `test-${newTest.id}`,
+            type: "lowPriorityTestNode",
+            data: {
+              label: newTest.name,
+              test: newTest,
+              featureId: feature.id.toString(),
+              tests: [newTest], // Pass the test as an array for preview
             },
-            markerEnd: {
-              type: MarkerType.ArrowClosed,
-              width: 15,
-              height: 15,
-              color: "#555",
-            },
+            position: { x: baseX, y: baseY },
           };
-
-          // Add the new node and edge
-          setNodes((prevNodes) => [...prevNodes, newNode]);
-          setEdges((prevEdges) => [...prevEdges, newEdge]);
-
-          showSnackbar(`Added ${testName} to ${feature.name}`, "success");
+        } else {
+          newNode = {
+            id: `test-${newTest.id}`,
+            type: "testNode",
+            data: {
+              label: newTest.name,
+              test: newTest,
+              featureId: feature.id.toString(),
+              tests: [newTest], // Pass the test as an array for preview
+            },
+            position: { x: baseX, y: baseY },
+          };
         }
+
+        // Create edge from feature to test
+        const newEdge: Edge = {
+          id: `edge-${feature.id}-${newNode.id}`,
+          source: feature.id.toString(),
+          target: newNode.id,
+          animated: true,
+          type: "bezier",
+          style: {
+            stroke: "#555",
+            strokeWidth: 1.5,
+          },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            width: 15,
+            height: 15,
+            color: "#555",
+          },
+        };
+
+        // Add the new node and edge to the flow
+        setNodes((nds) => [...nds, newNode]);
+        setEdges((eds) => [...eds, newEdge]);
+
+        // Show success message
+        showSnackbar("Test added successfully", "success");
+
+        // Close the node selector
+        setIsNodeSelectorOpen(false);
       }
     } catch (error) {
-      console.error("Error adding test node:", error);
-      showSnackbar("Failed to add test node", "error");
+      console.error("Error adding node:", error);
+      showSnackbar("Failed to add test", "error");
     }
   };
 
@@ -836,8 +1014,12 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
         <TestCasesSidebar
           feature={selectedFeature}
           isOpen={isTestCasesSidebarOpen}
-          onClose={() => setIsTestCasesSidebarOpen(false)}
+          onClose={() => {
+            setIsTestCasesSidebarOpen(false);
+            setSelectedPriorityForTest(null);
+          }}
           onTestsUpdated={handleTestsUpdated}
+          selectedPriority={selectedPriorityForTest}
         />
 
         <NodeSelectorSidebar

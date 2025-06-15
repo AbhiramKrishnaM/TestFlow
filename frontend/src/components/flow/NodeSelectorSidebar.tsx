@@ -46,7 +46,7 @@ export const NodeSelectorSidebar: React.FC<NodeSelectorSidebarProps> = ({
       <List>
         <ListItem
           button
-          onClick={() => onSelectNodeType("highPriorityTest")}
+          onClick={() => onSelectNodeType("highPriorityTestNode")}
           sx={{
             mb: 1,
             borderRadius: 1,
@@ -91,7 +91,7 @@ export const NodeSelectorSidebar: React.FC<NodeSelectorSidebarProps> = ({
 
         <ListItem
           button
-          onClick={() => onSelectNodeType("lowPriorityTest")}
+          onClick={() => onSelectNodeType("lowPriorityTestNode")}
           sx={{
             mb: 1,
             borderRadius: 1,
@@ -138,7 +138,7 @@ export const NodeSelectorSidebar: React.FC<NodeSelectorSidebarProps> = ({
 
         <ListItem
           button
-          onClick={() => onSelectNodeType("regularTest")}
+          onClick={() => onSelectNodeType("testNode")}
           sx={{
             mb: 1,
             borderRadius: 1,

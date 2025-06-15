@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Box,
   Typography,
@@ -20,6 +20,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Chip,
 } from "@mui/material";
 import { Feature } from "../../services/feature.service";
 import { Test } from "./nodes/TestNode";
@@ -31,6 +32,7 @@ interface TestCasesSidebarProps {
   isOpen: boolean;
   onClose: () => void;
   onTestsUpdated: (updatedTest?: Test, isDelete?: boolean) => void;
+  selectedPriority?: "high" | "normal" | "low" | null;
 }
 
 export const TestCasesSidebar: React.FC<TestCasesSidebarProps> = ({
@@ -38,6 +40,7 @@ export const TestCasesSidebar: React.FC<TestCasesSidebarProps> = ({
   isOpen,
   onClose,
   onTestsUpdated,
+  selectedPriority = null,
 }) => {
   const [tests, setTests] = useState<Test[]>([]);
   const [loading, setLoading] = useState(false);
@@ -46,7 +49,28 @@ export const TestCasesSidebar: React.FC<TestCasesSidebarProps> = ({
     "high" | "normal" | "low"
   >("normal");
   const [submitting, setSubmitting] = useState(false);
+  const [filterPriority, setFilterPriority] = useState<
+    "high" | "normal" | "low" | null
+  >(null);
   const { showSnackbar } = useSnackbar();
+
+  // Set the priority when the selectedPriority prop changes
+  useEffect(() => {
+    if (selectedPriority) {
+      setNewTestPriority(selectedPriority);
+      setFilterPriority(selectedPriority);
+    } else {
+      setFilterPriority(null);
+    }
+  }, [selectedPriority]);
+
+  // Filter tests by priority if a filter is set
+  const filteredTests = useMemo(() => {
+    if (!filterPriority) {
+      return tests;
+    }
+    return tests.filter((test) => test.priority === filterPriority);
+  }, [tests, filterPriority]);
 
   // Fetch tests for the feature
   useEffect(() => {
@@ -96,7 +120,10 @@ export const TestCasesSidebar: React.FC<TestCasesSidebarProps> = ({
       if (newTest) {
         setTests([...tests, newTest]);
         setNewTestName("");
-        setNewTestPriority("normal");
+        // Keep the priority if filtering is active
+        if (!filterPriority) {
+          setNewTestPriority("normal");
+        }
         onTestsUpdated(newTest);
         showSnackbar("Test added successfully", "success");
       }
@@ -142,6 +169,10 @@ export const TestCasesSidebar: React.FC<TestCasesSidebarProps> = ({
     }
   };
 
+  const handleClearFilter = () => {
+    setFilterPriority(null);
+  };
+
   return (
     <Drawer
       anchor="right"
@@ -159,6 +190,25 @@ export const TestCasesSidebar: React.FC<TestCasesSidebarProps> = ({
       >
         <Typography variant="h6">
           {feature ? `Tests for ${feature.name}` : "Tests"}
+          {filterPriority && (
+            <Box component="span" ml={1}>
+              <Chip
+                label={`${
+                  filterPriority.charAt(0).toUpperCase() +
+                  filterPriority.slice(1)
+                } Priority`}
+                color={
+                  filterPriority === "high"
+                    ? "error"
+                    : filterPriority === "low"
+                    ? "primary"
+                    : "default"
+                }
+                size="small"
+                onDelete={handleClearFilter}
+              />
+            </Box>
+          )}
         </Typography>
         <IconButton onClick={onClose} size="small">
           <svg
@@ -201,7 +251,7 @@ export const TestCasesSidebar: React.FC<TestCasesSidebarProps> = ({
               onChange={(e) =>
                 setNewTestPriority(e.target.value as "high" | "normal" | "low")
               }
-              disabled={submitting}
+              disabled={submitting || filterPriority !== null}
             >
               <MenuItem value="high">High</MenuItem>
               <MenuItem value="normal">Normal</MenuItem>
@@ -224,7 +274,7 @@ export const TestCasesSidebar: React.FC<TestCasesSidebarProps> = ({
         <Box display="flex" justifyContent="center" my={4}>
           <CircularProgress />
         </Box>
-      ) : tests.length > 0 ? (
+      ) : filteredTests.length > 0 ? (
         <TableContainer component={Paper} variant="outlined">
           <Table>
             <TableHead>
@@ -236,7 +286,7 @@ export const TestCasesSidebar: React.FC<TestCasesSidebarProps> = ({
               </TableRow>
             </TableHead>
             <TableBody>
-              {tests.map((test) => (
+              {filteredTests.map((test) => (
                 <TableRow key={test.id}>
                   <TableCell>
                     <Box display="flex" alignItems="center">
@@ -329,7 +379,9 @@ export const TestCasesSidebar: React.FC<TestCasesSidebarProps> = ({
           textAlign="center"
           py={4}
         >
-          No tests added for this feature yet.
+          {filterPriority
+            ? `No ${filterPriority} priority tests found for this feature.`
+            : "No tests added for this feature yet."}
         </Typography>
       )}
     </Drawer>
