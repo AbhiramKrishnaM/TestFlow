@@ -207,6 +207,8 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
               feature: featureForNode,
               onClick: (clickedFeatureId: string) =>
                 handleFeatureClick(clickedFeatureId),
+              onDelete: (clickedFeatureId: string) =>
+                handleDeleteFeature(clickedFeatureId),
             },
             position: featurePosition,
           };
@@ -915,6 +917,40 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
       setFeatureTree(updatedFeatureTree);
     } catch (error) {
       console.error("Error refreshing features:", error);
+    }
+  };
+
+  // Handle deleting a feature and its associated tests
+  const handleDeleteFeature = async (featureId: string) => {
+    // Show confirmation dialog
+    if (
+      !window.confirm(
+        `Are you sure you want to delete this feature and all its tests?`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      // Delete the feature
+      await featureService.deleteFeature(featureId);
+
+      // Show success message
+      showSnackbar(
+        "Feature and associated tests deleted successfully",
+        "success"
+      );
+
+      // Refresh features and tests
+      await Promise.all([handleFeaturesUpdated(), handleTestsUpdated()]);
+
+      // Regenerate the flow with updated data
+      if (project) {
+        regenerateNodesAndEdges(project, featureTree, testCases, tests);
+      }
+    } catch (error) {
+      console.error("Error deleting feature:", error);
+      showSnackbar("Failed to delete feature", "error");
     }
   };
 
