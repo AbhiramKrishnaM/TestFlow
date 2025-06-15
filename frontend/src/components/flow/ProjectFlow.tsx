@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import ReactFlow, {
   Node,
   Edge,
@@ -12,6 +12,7 @@ import ReactFlow, {
   ReactFlowInstance,
   BackgroundVariant,
   MarkerType,
+  NodeChange,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import "./flow.css";
@@ -38,6 +39,7 @@ import { TestCasesSidebar } from "./TestCasesSidebar";
 import { HighPriorityTestNode } from "./nodes/HighPriorityTestNode";
 import { LowPriorityTestNode } from "./nodes/LowPriorityTestNode";
 import { NodeSelectorSidebar } from "./NodeSelectorSidebar";
+import { nodePositionService } from "../../services/node-position.service";
 
 interface ProjectFlowProps {
   project: Project;
@@ -95,6 +97,9 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
   const [selectedPriorityForTest, setSelectedPriorityForTest] = useState<
     "high" | "low" | "normal" | null
   >(null);
+  const [savedNodePositions, setSavedNodePositions] = useState<{
+    [key: string]: { x: number; y: number };
+  }>({});
 
   // Function to regenerate nodes and edges when features, tests, or test cases change
   const regenerateNodesAndEdges = useCallback(
@@ -110,11 +115,25 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
       console.log("Tests:", tests);
 
       // Create root node for the project
+      const rootNodeId = `project-${project.id}`;
+      const savedPosition = savedNodePositions[rootNodeId];
+
+      // Force use of saved position if available
+      const rootPosition = savedPosition
+        ? { x: savedPosition.x, y: savedPosition.y }
+        : { x: 400, y: 50 };
+
+      console.log(
+        `Root node position - Saved: ${JSON.stringify(
+          savedPosition
+        )}, Using: ${JSON.stringify(rootPosition)}`
+      );
+
       const rootNode: Node = {
-        id: `project-${project.id}`,
+        id: rootNodeId,
         type: "rootNode",
         data: { label: project.name, project },
-        position: { x: 400, y: 50 },
+        position: rootPosition,
       };
 
       const allNodes: Node[] = [rootNode];
@@ -164,6 +183,22 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
             children: [], // Don't need children in the node data
           };
 
+          const savedFeaturePosition = savedNodePositions[featureId];
+          const defaultPosition = { x: xPosition, y: yPosition };
+
+          // Force use of saved position if available
+          const featurePosition = savedFeaturePosition
+            ? { x: savedFeaturePosition.x, y: savedFeaturePosition.y }
+            : defaultPosition;
+
+          if (savedFeaturePosition) {
+            console.log(
+              `Feature ${feature.name} - Using saved position: ${JSON.stringify(
+                featurePosition
+              )}`
+            );
+          }
+
           const featureNode: Node = {
             id: featureId,
             type: nodeType,
@@ -173,7 +208,7 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
               onClick: (clickedFeatureId: string) =>
                 handleFeatureClick(clickedFeatureId),
             },
-            position: { x: xPosition, y: yPosition },
+            position: featurePosition,
           };
 
           // Create edge from parent to this feature
@@ -249,8 +284,9 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
                 ? `Test Cases (${featureTests.length})`
                 : `Test Cases (${normalPriorityTests.length})`;
 
+            const testNodeId = `tests-${featureId}`;
             const mainTestNode: Node = {
-              id: `tests-${featureId}`,
+              id: testNodeId,
               type: "testNode",
               data: {
                 label: mainNodeLabel,
@@ -277,10 +313,12 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
                   }
                 },
               },
-              position: {
-                x: baseX,
-                y: baseY,
-              },
+              position: savedNodePositions[testNodeId]
+                ? {
+                    x: savedNodePositions[testNodeId].x,
+                    y: savedNodePositions[testNodeId].y,
+                  }
+                : { x: baseX, y: baseY },
             };
 
             // Add the main test node
@@ -314,8 +352,9 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
 
             // Create high priority node if there are high priority tests
             if (highPriorityTests.length > 0) {
+              const highPriorityNodeId = `high-priority-tests-${featureId}`;
               const highPriorityNode: Node = {
-                id: `high-priority-tests-${featureId}`,
+                id: highPriorityNodeId,
                 type: "highPriorityTestNode",
                 data: {
                   label: `High Priority (${highPriorityTests.length})`,
@@ -335,10 +374,15 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
                     }
                   },
                 },
-                position: {
-                  x: baseX + 250, // Position to the right of main test node
-                  y: baseY - 80, // Position above the main test node
-                },
+                position: savedNodePositions[highPriorityNodeId]
+                  ? {
+                      x: savedNodePositions[highPriorityNodeId].x,
+                      y: savedNodePositions[highPriorityNodeId].y,
+                    }
+                  : {
+                      x: baseX + 250, // Position to the right of main test node
+                      y: baseY - 80, // Position above the main test node
+                    },
               };
 
               nodes.push(highPriorityNode);
@@ -366,8 +410,9 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
 
             // Create low priority node if there are low priority tests
             if (lowPriorityTests.length > 0) {
+              const lowPriorityNodeId = `low-priority-tests-${featureId}`;
               const lowPriorityNode: Node = {
-                id: `low-priority-tests-${featureId}`,
+                id: lowPriorityNodeId,
                 type: "lowPriorityTestNode",
                 data: {
                   label: `Low Priority (${lowPriorityTests.length})`,
@@ -387,10 +432,15 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
                     }
                   },
                 },
-                position: {
-                  x: baseX + 250, // Position to the right of main test node
-                  y: baseY + 80, // Position below the main test node
-                },
+                position: savedNodePositions[lowPriorityNodeId]
+                  ? {
+                      x: savedNodePositions[lowPriorityNodeId].x,
+                      y: savedNodePositions[lowPriorityNodeId].y,
+                    }
+                  : {
+                      x: baseX + 250, // Position to the right of main test node
+                      y: baseY + 80, // Position below the main test node
+                    },
               };
 
               nodes.push(lowPriorityNode);
@@ -490,8 +540,38 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
       setNodes(allNodes);
       setEdges(allEdges);
     },
-    [setNodes, setEdges]
+    [setNodes, setEdges, savedNodePositions]
   );
+
+  // This function is no longer used - positions are loaded directly in the useEffect
+  // Keeping it as a reference in case we need to revert
+  /*
+  const loadSavedNodePositions = async () => {
+    if (!project) return;
+
+    try {
+      const positions = await nodePositionService.getProjectNodePositions(
+        project.id
+      );
+
+      // Convert to a lookup object for easy access
+      const positionMap: { [key: string]: { x: number; y: number } } = {};
+      positions.forEach((pos) => {
+        positionMap[pos.node_id] = { x: pos.position_x, y: pos.position_y };
+      });
+
+      console.log("Loaded saved node positions:", positionMap);
+      console.log("Number of saved positions:", Object.keys(positionMap).length);
+
+      // Store the positions
+      setSavedNodePositions(positionMap);
+      return positionMap;
+    } catch (error) {
+      console.error("Error loading saved node positions:", error);
+      return {};
+    }
+  };
+  */
 
   // Fetch test cases, features, and tests for the project
   useEffect(() => {
@@ -502,13 +582,36 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
       setLoading(true);
       try {
         console.log("Fetching data for project:", project.id);
-        const [testCasesData, featuresData, featureTreeData, testsData] =
-          await Promise.all([
-            testCaseService.getProjectTestCases(project.id),
-            featureService.getProjectFeatures(project.id),
-            featureService.getProjectFeatureTree(project.id),
-            testService.getAllTests(),
-          ]);
+
+        // First, load everything in parallel for better performance
+        const [
+          positionsData,
+          testCasesData,
+          featuresData,
+          featureTreeData,
+          testsData,
+        ] = await Promise.all([
+          nodePositionService.getProjectNodePositions(project.id),
+          testCaseService.getProjectTestCases(project.id),
+          featureService.getProjectFeatures(project.id),
+          featureService.getProjectFeatureTree(project.id),
+          testService.getAllTests(),
+        ]);
+
+        // Process the positions and set them in state
+        const positionMap: { [key: string]: { x: number; y: number } } = {};
+        positionsData.forEach((pos) => {
+          positionMap[pos.node_id] = { x: pos.position_x, y: pos.position_y };
+        });
+
+        console.log("Loaded position map:", positionMap);
+        console.log(
+          "Number of saved positions:",
+          Object.keys(positionMap).length
+        );
+
+        // Set the positions in state
+        setSavedNodePositions(positionMap);
 
         if (isMounted) {
           // Log the raw test data
@@ -569,8 +672,21 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
   // Generate the initial nodes and edges based on the project, features, and test cases
   useEffect(() => {
     if (!project || loading || featureTree.length === 0) return;
-    console.log("Regenerating nodes and edges");
-    regenerateNodesAndEdges(project, featureTree, testCases, tests);
+
+    // Only regenerate nodes if we have positions or this is the first load
+    const positionCount = Object.keys(savedNodePositions).length;
+    console.log(
+      `Regenerating nodes and edges with ${positionCount} saved positions:`,
+      savedNodePositions
+    );
+
+    // Small delay to ensure savedNodePositions is fully processed
+    const timer = setTimeout(() => {
+      console.log("Applying saved positions to nodes:", savedNodePositions);
+      regenerateNodesAndEdges(project, featureTree, testCases, tests);
+    }, 200); // Increased delay to ensure positions are loaded
+
+    return () => clearTimeout(timer);
   }, [
     project,
     featureTree,
@@ -578,6 +694,7 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
     tests,
     regenerateNodesAndEdges,
     loading,
+    savedNodePositions,
   ]);
 
   const handleNodeClick: NodeMouseHandler = (event, node) => {
@@ -932,6 +1049,80 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
     }
   };
 
+  // Save node positions when they change with proper debouncing
+  const saveNodePositionsRef = useRef<NodeJS.Timeout | null>(null);
+  const [positionSaveStatus, setPositionSaveStatus] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
+
+  const handleNodesChange = useCallback(
+    (changes: NodeChange[]) => {
+      onNodesChange(changes);
+
+      // Only save position changes, not selection changes or other types
+      const positionChanges = changes.filter(
+        (change) => change.type === "position"
+      );
+
+      const hasPositionChange = positionChanges.length > 0;
+
+      if (!hasPositionChange) return;
+
+      console.log("Position changes detected:", positionChanges);
+
+      // Clear any existing timeout to implement debouncing
+      if (saveNodePositionsRef.current) {
+        clearTimeout(saveNodePositionsRef.current);
+      }
+
+      // Set saving status
+      setPositionSaveStatus("saving");
+
+      // Set a new timeout
+      saveNodePositionsRef.current = setTimeout(() => {
+        if (project && nodes.length > 0) {
+          console.log("Saving node positions for nodes:", nodes.length);
+
+          // Log a few nodes as examples
+          const sampleNodes = nodes.slice(0, 3);
+          console.log(
+            "Sample nodes to save:",
+            sampleNodes.map((n) => ({
+              id: n.id,
+              type: n.type,
+              position: n.position,
+            }))
+          );
+
+          nodePositionService
+            .saveNodePositions(nodes, project.id)
+            .then((success) => {
+              if (success) {
+                console.log("Node positions saved successfully");
+                setPositionSaveStatus("saved");
+                showSnackbar("Node positions saved", "success");
+
+                // Reset status after a delay
+                setTimeout(() => {
+                  setPositionSaveStatus("idle");
+                }, 3000);
+              } else {
+                setPositionSaveStatus("error");
+                showSnackbar("Failed to save node positions", "error");
+              }
+            })
+            .catch((error) => {
+              console.error("Error saving positions:", error);
+              setPositionSaveStatus("error");
+              showSnackbar("Failed to save node positions", "error");
+            });
+        }
+        saveNodePositionsRef.current = null;
+      }, 2000); // Increased to 2 seconds for better debouncing
+    },
+    [nodes, project, onNodesChange, showSnackbar]
+  );
+
   return (
     <FlowWrapper>
       {(onEdit || onDelete) && (
@@ -957,7 +1148,7 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
         <ReactFlow
           nodes={nodes}
           edges={edges}
-          onNodesChange={onNodesChange}
+          onNodesChange={handleNodesChange}
           onEdgesChange={onEdgesChange}
           nodeTypes={nodeTypes}
           onNodeClick={handleNodeClick}
@@ -977,6 +1168,24 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
             size={1}
             color="#ccc"
           />
+
+          {/* Position save status indicator */}
+          {positionSaveStatus === "saving" && (
+            <div
+              style={{
+                position: "absolute",
+                bottom: "10px",
+                left: "10px",
+                padding: "5px 10px",
+                backgroundColor: "rgba(0, 0, 0, 0.7)",
+                color: "white",
+                borderRadius: "4px",
+                zIndex: 1000,
+              }}
+            >
+              Saving positions...
+            </div>
+          )}
         </ReactFlow>
 
         {/* Add Node FAB */}
