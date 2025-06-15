@@ -24,4 +24,5 @@ class Project(Base):
     # Relationships
     owner = relationship("User", foreign_keys=[owner_id], back_populates="owned_projects")
     members = relationship("User", secondary=project_members, backref="member_projects")
-    test_cases = relationship("TestCase", back_populates="project", cascade="all, delete-orphan") 
+    test_cases = relationship("TestCase", back_populates="project", cascade="all, delete-orphan")
+    features = relationship("Feature", back_populates="project", cascade="all, delete-orphan") 

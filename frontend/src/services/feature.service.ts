@@ -16,85 +16,149 @@ export interface CreateFeatureDto {
   project_id: number;
 }
 
+export interface UpdateFeatureDto {
+  name?: string;
+  description?: string;
+}
+
 class FeatureService {
   private featuresCache: Map<number, Feature[]> = new Map(); // projectId -> features
-  private mockFeatures: Map<number, Feature[]> = new Map(); // For demo purposes
-  private lastFeatureId = 1;
-
-  constructor() {
-    // Initialize with empty mock data
-    this.mockFeatures = new Map();
-  }
 
   async getProjectFeatures(projectId: number): Promise<Feature[]> {
-    // For now, return mock data as this endpoint isn't implemented yet
-    // When the backend is ready, uncomment the code below
+    // Check if we have cached data first
+    const cachedFeatures = this.featuresCache.get(projectId);
+    if (cachedFeatures) {
+      console.log(
+        `Using cached features for project ${projectId}`,
+        cachedFeatures
+      );
+      return cachedFeatures;
+    }
 
-    /*
     try {
-      const response = await axios.get<Feature[]>(`${API_URL}/projects/${projectId}/features`);
-      this.featuresCache.set(projectId, response.data);
-      return response.data;
+      console.log(`Fetching features for project ${projectId} from API`);
+      const response = await axios.get<Feature[]>(
+        `${API_URL}/features/project/${projectId}`
+      );
+      console.log("Features response from API:", response.data);
+
+      // Convert numeric IDs to strings if needed
+      const processedFeatures = response.data.map((feature) => ({
+        ...feature,
+        id: String(feature.id),
+      }));
+
+      this.featuresCache.set(projectId, processedFeatures);
+      return processedFeatures;
     } catch (error) {
       console.error(`Error fetching features for project ${projectId}:`, error);
       return [];
     }
-    */
-
-    // Return mock data for now
-    return this.mockFeatures.get(projectId) || [];
   }
 
   async createFeature(featureData: CreateFeatureDto): Promise<Feature | null> {
-    // For now, create mock feature as this endpoint isn't implemented yet
-    // When the backend is ready, uncomment the code below
-
-    /*
     try {
-      const response = await axios.post<Feature>(`${API_URL}/features`, featureData);
-      
+      const response = await axios.post<Feature>(
+        `${API_URL}/features`,
+        featureData
+      );
+
+      // Ensure ID is a string
+      const feature = {
+        ...response.data,
+        id: String(response.data.id),
+      };
+
+      console.log("Created feature:", feature);
+
       // Update cache
       const projectId = featureData.project_id;
       const cachedFeatures = this.featuresCache.get(projectId) || [];
-      this.featuresCache.set(projectId, [...cachedFeatures, response.data]);
-      
-      return response.data;
+      this.featuresCache.set(projectId, [...cachedFeatures, feature]);
+
+      return feature;
     } catch (error) {
       console.error("Error creating feature:", error);
       throw error;
     }
-    */
+  }
 
-    // Create mock feature for now
-    const newFeature: Feature = {
-      id: `feature-${this.lastFeatureId++}`,
-      name: featureData.name,
-      description: featureData.description,
-      project_id: featureData.project_id,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
+  async updateFeature(
+    featureId: string,
+    updateData: UpdateFeatureDto
+  ): Promise<Feature | null> {
+    try {
+      const response = await axios.put<Feature>(
+        `${API_URL}/features/${featureId}`,
+        updateData
+      );
 
-    // Update mock data
-    const projectId = featureData.project_id;
-    const existingFeatures = this.mockFeatures.get(projectId) || [];
-    this.mockFeatures.set(projectId, [...existingFeatures, newFeature]);
+      // Ensure ID is a string
+      const feature = {
+        ...response.data,
+        id: String(response.data.id),
+      };
 
-    return newFeature;
+      console.log("Updated feature:", feature);
+
+      // Update cache if we have it
+      const projectId = feature.project_id;
+      const cachedFeatures = this.featuresCache.get(projectId);
+
+      if (cachedFeatures) {
+        const updatedFeatures = cachedFeatures.map((f) =>
+          f.id === featureId ? feature : f
+        );
+        this.featuresCache.set(projectId, updatedFeatures);
+      }
+
+      return feature;
+    } catch (error) {
+      console.error(`Error updating feature ${featureId}:`, error);
+      throw error;
+    }
+  }
+
+  async deleteFeature(featureId: string): Promise<boolean> {
+    try {
+      const response = await axios.delete<Feature>(
+        `${API_URL}/features/${featureId}`
+      );
+
+      // Ensure ID is a string
+      const feature = {
+        ...response.data,
+        id: String(response.data.id),
+      };
+
+      console.log("Deleted feature:", feature);
+
+      // Update cache if we have it
+      const projectId = feature.project_id;
+      const cachedFeatures = this.featuresCache.get(projectId);
+
+      if (cachedFeatures) {
+        const updatedFeatures = cachedFeatures.filter(
+          (f) => f.id !== featureId
+        );
+        this.featuresCache.set(projectId, updatedFeatures);
+      }
+
+      return true;
+    } catch (error) {
+      console.error(`Error deleting feature ${featureId}:`, error);
+      throw error;
+    }
   }
 
   // Clear cache for a specific project
   clearProjectCache(projectId: number) {
     this.featuresCache.delete(projectId);
-    // For demo purposes, also clear mock data
-    this.mockFeatures.delete(projectId);
   }
 
   // Clear all cache
   clearCache() {
     this.featuresCache.clear();
-    // For demo purposes, also clear all mock data
-    this.mockFeatures.clear();
   }
 }
 

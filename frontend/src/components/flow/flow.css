@@ -30,6 +30,8 @@
 
 .react-flow__controls {
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  bottom: 30px;
+  right: 30px;
 }
 
 .react-flow__minimap {
@@ -43,6 +45,7 @@
   border-radius: 8px;
   overflow: hidden;
   position: relative;
+  padding: 20px;
 }
 
 .project-sidebar {
