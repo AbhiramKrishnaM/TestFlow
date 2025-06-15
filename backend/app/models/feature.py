@@ -14,4 +14,5 @@ class Feature(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
-    project = relationship("Project", back_populates="features") 
+    project = relationship("Project", back_populates="features")
+    tests = relationship("Test", back_populates="feature", cascade="all, delete-orphan") 

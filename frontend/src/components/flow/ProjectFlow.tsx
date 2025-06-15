@@ -22,8 +22,11 @@ import { FlowWrapper } from "./FlowWrapper";
 import { testCaseService, TestCase } from "../../services/testcase.service";
 import { featureService, Feature } from "../../services/feature.service";
 import { ProjectSidebar } from "./ProjectSidebar";
+import { FeatureSidebar } from "./FeatureSidebar";
 import { useSnackbar } from "../../contexts/SnackbarContext";
 import { Box, Button } from "@mui/material";
+import { TestNode, Test } from "./nodes/TestNode";
+import { testService } from "../../services/test.service";
 
 interface ProjectFlowProps {
   project: Project;
@@ -36,6 +39,7 @@ const nodeTypes: NodeTypes = {
   rootNode: RootNode,
   testCaseNode: TestCaseNode,
   featureNode: FeatureNode,
+  testNode: TestNode,
 };
 
 // Default viewport settings
@@ -58,18 +62,27 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [testCases, setTestCases] = useState<TestCase[]>([]);
   const [features, setFeatures] = useState<Feature[]>([]);
+  const [tests, setTests] = useState<Test[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isFeatureSidebarOpen, setIsFeatureSidebarOpen] = useState(false);
+  const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
   const [reactFlowInstance, setReactFlowInstance] =
     useState<ReactFlowInstance | null>(null);
   const { showSnackbar } = useSnackbar();
 
-  // Function to regenerate nodes and edges when features or test cases change
+  // Function to regenerate nodes and edges when features, tests, or test cases change
   const regenerateNodesAndEdges = useCallback(
-    (project: Project, features: Feature[], testCases: TestCase[]) => {
+    (
+      project: Project,
+      features: Feature[],
+      testCases: TestCase[],
+      tests: Test[]
+    ) => {
       if (!project) return;
 
       console.log("Regenerating nodes with features:", features);
+      console.log("Tests:", tests);
 
       // Create root node for the project
       const rootNode: Node = {
@@ -96,7 +109,11 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
           const featureNode: Node = {
             id: featureId,
             type: "featureNode",
-            data: { label: feature.name, feature },
+            data: {
+              label: feature.name,
+              feature,
+              onClick: (featureId: string) => handleFeatureClick(featureId),
+            },
             position: { x: 400 + xOffset, y: 250 },
           };
 
@@ -109,6 +126,39 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
 
           allNodes.push(featureNode);
           allEdges.push(edge);
+
+          // Add test nodes for this feature
+          const featureTests = tests.filter(
+            (test) => test.featureId === featureId
+          );
+
+          if (featureTests.length > 0) {
+            featureTests.forEach((test, testIndex) => {
+              // Position tests in a row below the feature node
+              const testXOffset =
+                (testIndex - (featureTests.length - 1) / 2) * 150;
+
+              const testNode: Node = {
+                id: `test-${test.id}`,
+                type: "testNode",
+                data: {
+                  label: test.name,
+                  test,
+                },
+                position: { x: 400 + xOffset + testXOffset, y: 350 },
+              };
+
+              const testEdge: Edge = {
+                id: `edge-${featureId}-test-${test.id}`,
+                source: featureId,
+                target: `test-${test.id}`,
+                animated: false,
+              };
+
+              allNodes.push(testNode);
+              allEdges.push(testEdge);
+            });
+          }
         });
       }
 
@@ -153,42 +203,119 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
     [setNodes, setEdges]
   );
 
-  // Fetch test cases and features for the project
+  // Fetch test cases, features, and tests for the project
   useEffect(() => {
+    let isMounted = true;
     const fetchData = async () => {
       if (!project) return;
 
       setLoading(true);
       try {
-        const testCasesData = await testCaseService.getProjectTestCases(
-          project.id
-        );
-        setTestCases(testCasesData);
+        console.log("Fetching data for project:", project.id);
+        const [testCasesData, featuresData, testsData] = await Promise.all([
+          testCaseService.getProjectTestCases(project.id),
+          featureService.getProjectFeatures(project.id),
+          testService.getAllTests(),
+        ]);
 
-        const featuresData = await featureService.getProjectFeatures(
-          project.id
-        );
-        setFeatures(featuresData);
+        if (isMounted) {
+          setTestCases(testCasesData);
+          setFeatures(featuresData);
+          setTests(testsData);
+        }
       } catch (error) {
         console.error("Error fetching project data:", error);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchData();
-  }, [project]);
+
+    // Cleanup function to prevent state updates if component unmounts
+    return () => {
+      isMounted = false;
+    };
+  }, [project?.id]); // Only depend on project.id, not the entire project object
 
   // Generate the initial nodes and edges based on the project, features, and test cases
   useEffect(() => {
-    if (!project) return;
-    regenerateNodesAndEdges(project, features, testCases);
-  }, [project, features, testCases, regenerateNodesAndEdges]);
+    if (!project || loading) return;
+    console.log("Regenerating nodes and edges");
+    regenerateNodesAndEdges(project, features, testCases, tests);
+  }, [project, features, testCases, tests, regenerateNodesAndEdges, loading]);
 
   const handleNodeClick: NodeMouseHandler = (event, node) => {
     // Only open sidebar when clicking on the project root node
     if (node.type === "rootNode") {
       setIsSidebarOpen(true);
+    } else if (node.type === "testNode") {
+      // Toggle test status when clicking on a test node
+      const testId = node.id.replace("test-", "");
+      handleToggleTestStatus(testId);
+    }
+  };
+
+  const handleToggleTestStatus = async (testId: string) => {
+    try {
+      const updatedTest = await testService.toggleTestStatus(testId);
+      if (updatedTest) {
+        // Update the tests state with the updated test
+        const updatedTests = tests.map((test) =>
+          test.id === testId ? updatedTest : test
+        );
+        setTests(updatedTests);
+
+        // Show a snackbar message
+        showSnackbar(
+          `Test marked as ${updatedTest.tested ? "tested" : "untested"}`,
+          "success"
+        );
+      }
+    } catch (error) {
+      console.error("Error toggling test status:", error);
+      showSnackbar("Failed to update test status", "error");
+    }
+  };
+
+  const handleFeatureClick = (featureId: string) => {
+    const feature = features.find((f) => f.id.toString() === featureId);
+    if (feature) {
+      setSelectedFeature(feature);
+      setIsFeatureSidebarOpen(true);
+    }
+  };
+
+  const handleTestsUpdated = async (
+    updatedTest?: Test,
+    isDelete: boolean = false
+  ) => {
+    try {
+      if (updatedTest) {
+        // If we have the updated test, just update the local state without making an API call
+        if (isDelete) {
+          setTests(tests.filter((test) => test.id !== updatedTest.id));
+        } else {
+          setTests(
+            tests
+              .map((test) => (test.id === updatedTest.id ? updatedTest : test))
+              .concat(
+                tests.some((test) => test.id === updatedTest.id)
+                  ? []
+                  : [updatedTest]
+              )
+          );
+        }
+      } else {
+        // Only fetch all tests if we don't have the updated test
+        console.log("Fetching all tests after update");
+        const updatedTests = await testService.getAllTests();
+        setTests(updatedTests);
+      }
+    } catch (error) {
+      console.error("Error refreshing tests:", error);
     }
   };
 
@@ -209,7 +336,7 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
         setFeatures(updatedFeatures);
 
         // Regenerate nodes and edges with the new feature
-        regenerateNodesAndEdges(project, updatedFeatures, testCases);
+        regenerateNodesAndEdges(project, updatedFeatures, testCases, tests);
 
         showSnackbar("Feature added successfully", "success");
         return newFeature;
@@ -229,7 +356,7 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
         project.id
       );
       setFeatures(updatedFeatures);
-      regenerateNodesAndEdges(project, updatedFeatures, testCases);
+      regenerateNodesAndEdges(project, updatedFeatures, testCases, tests);
     } catch (error) {
       console.error("Error refreshing features:", error);
     }
@@ -294,6 +421,13 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
           onClose={() => setIsSidebarOpen(false)}
           onAddFeature={handleAddFeature}
           onFeaturesUpdated={handleFeaturesUpdated}
+        />
+
+        <FeatureSidebar
+          feature={selectedFeature}
+          isOpen={isFeatureSidebarOpen}
+          onClose={() => setIsFeatureSidebarOpen(false)}
+          onTestsUpdated={handleTestsUpdated}
         />
       </div>
     </FlowWrapper>

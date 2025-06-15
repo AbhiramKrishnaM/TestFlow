@@ -10,11 +10,21 @@ interface Feature {
 interface FeatureNodeData {
   label: string;
   feature: Feature;
+  onClick?: (featureId: string) => void;
 }
 
 export const FeatureNode = memo(({ data }: NodeProps<FeatureNodeData>) => {
+  const handleClick = () => {
+    if (data.onClick) {
+      data.onClick(data.feature.id);
+    }
+  };
+
   return (
-    <div className="px-4 py-2 shadow-lg rounded-lg bg-purple-500 text-white border-2 border-purple-600 min-w-[150px]">
+    <div
+      className="px-4 py-2 shadow-lg rounded-lg bg-purple-500 text-white border-2 border-purple-600 min-w-[150px] cursor-pointer hover:shadow-xl hover:translate-y-[-2px] transition-all"
+      onClick={handleClick}
+    >
       <div className="flex items-center">
         <div className="rounded-full bg-white p-1 mr-2">
           <svg
