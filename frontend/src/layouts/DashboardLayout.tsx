@@ -5,17 +5,14 @@ import React, {
   useContext,
   useRef,
 } from "react";
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import {
   Navbar,
   Typography,
   Button,
   IconButton,
-  Drawer,
-  List,
 } from "../components/MaterialTailwindFix";
-import { NavLink } from "../components/ui/NavLink";
 import { projectService, Project } from "../services/project.service";
 
 // Create a context to share project data across components
@@ -39,7 +36,6 @@ export function DashboardLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const projectsLoadedRef = useRef(false);
@@ -96,48 +92,53 @@ export function DashboardLayout() {
     navigate("/login");
   };
 
-  const toggleDrawer = () => {
-    setDrawerOpen(!drawerOpen);
+  // Check if current path matches the link path
+  const isActive = (path: string) => {
+    if (path === "/projects" && location.pathname.match(/^\/projects\/\d+/)) {
+      return true;
+    }
+    return location.pathname === path;
   };
-
-  const hasProjects = projects.length > 0;
 
   return (
     <ProjectContext.Provider
       value={{ projects, setProjects, loading, fetchProjects }}
     >
       <div className="min-h-screen bg-gray-100">
-        {/* Navbar */}
-        <Navbar className="max-w-full rounded-none px-4 py-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              {hasProjects && (
-                <IconButton
-                  variant="text"
-                  onClick={toggleDrawer}
-                  className="lg:hidden"
+        {/* Top Navigation Bar */}
+        <Navbar className="max-w-full rounded-none px-6 py-3 bg-white shadow-sm">
+          <div className="flex items-center justify-between w-full">
+            {/* Logo and App Name */}
+            <div className="flex items-center">
+              <Link to="/dashboard" className="flex items-center">
+                <Typography
+                  variant="h5"
+                  className="font-medium text-blue-600 logo-text"
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    className="h-6 w-6"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 6h16M4 12h16M4 18h16"
-                    />
-                  </svg>
-                </IconButton>
-              )}
-              <Typography variant="h6" className="cursor-pointer py-1.5">
-                TestFlow
-              </Typography>
+                  Test Flow
+                </Typography>
+              </Link>
             </div>
 
+            {/* Navigation Links */}
+            <div className="hidden lg:flex items-center justify-center flex-1">
+              <div className="flex space-x-12">
+                <NavItem to="/dashboard" active={isActive("/dashboard")}>
+                  Dashboard
+                </NavItem>
+                <NavItem to="/projects" active={isActive("/projects")}>
+                  Report
+                </NavItem>
+                <NavItem to="#" active={false}>
+                  Fee Management
+                </NavItem>
+                <NavItem to="#" active={false}>
+                  Integrations
+                </NavItem>
+              </div>
+            </div>
+
+            {/* User Info and Logout */}
             <div className="flex items-center gap-4">
               <div className="hidden lg:block">
                 <Typography variant="small" color="blue-gray">
@@ -178,92 +179,34 @@ export function DashboardLayout() {
           </div>
         </Navbar>
 
-        {/* Content */}
-        <div className="flex h-[calc(100vh-64px)]">
-          {/* Sidebar - Desktop */}
-          {hasProjects && !loading && (
-            <aside className="hidden w-64 bg-white p-4 shadow-md lg:block">
-              <SidebarContent />
-            </aside>
-          )}
-
-          {/* Sidebar - Mobile */}
-          {hasProjects && !loading && (
-            <Drawer
-              open={drawerOpen}
-              onClose={toggleDrawer}
-              className="lg:hidden"
-            >
-              <div className="px-4 py-6">
-                <Typography variant="h5" className="mb-6">
-                  TestFlow
-                </Typography>
-                <SidebarContent onClick={toggleDrawer} />
-              </div>
-            </Drawer>
-          )}
-
-          {/* Main content */}
-          <main className="flex-1 overflow-auto p-6">
-            <Outlet />
-          </main>
-        </div>
+        {/* Main content */}
+        <main className="w-full overflow-auto p-6">
+          <Outlet />
+        </main>
       </div>
     </ProjectContext.Provider>
   );
 }
 
-// Sidebar content component
-function SidebarContent({ onClick }: { onClick?: () => void }) {
-  return (
-    <List>
-      <NavLink
-        to="/dashboard"
-        onClick={onClick}
-        exact={true}
-        icon={
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            className="h-5 w-5"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-            />
-          </svg>
-        }
-      >
-        Dashboard
-      </NavLink>
-
-      <NavLink
-        to="/projects"
-        onClick={onClick}
-        exact={true}
-        icon={
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            className="h-5 w-5"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-            />
-          </svg>
-        }
-      >
-        Projects
-      </NavLink>
-    </List>
-  );
+// Navigation Item Component
+interface NavItemProps {
+  to: string;
+  active: boolean;
+  children: React.ReactNode;
 }
+
+const NavItem: React.FC<NavItemProps> = ({ to, active, children }) => {
+  return (
+    <Link
+      to={to}
+      className={`px-3 py-2 text-sm font-medium transition-colors relative ${
+        active ? "text-blue-600" : "text-gray-600 hover:text-gray-900"
+      }`}
+    >
+      {children}
+      {active && (
+        <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-full"></div>
+      )}
+    </Link>
+  );
+};

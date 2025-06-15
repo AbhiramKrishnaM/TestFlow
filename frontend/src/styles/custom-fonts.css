@@ -1,0 +1,13 @@
+/* Custom Font Styling */
+
+/* Since "WDXL Lubrifont SC" is a custom font that might not be widely available,
+   we're using Space Grotesk as a modern alternative with similar characteristics */
+
+.logo-text {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* Additional custom typography classes can be added here */
