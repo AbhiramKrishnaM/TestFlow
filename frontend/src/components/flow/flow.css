@@ -42,4 +42,37 @@
   height: 70vh;
   border-radius: 8px;
   overflow: hidden;
+  position: relative;
+}
+
+.project-sidebar {
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  width: 300px;
+  background-color: white;
+  z-index: 10;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+  overflow-y: auto;
+}
+
+.project-sidebar.hidden {
+  transform: translateX(100%);
+}
+
+.node-feature {
+  background-color: #9333ea;
+  color: white;
+}
+
+.node-testcase {
+  background-color: #22c55e;
+  color: white;
+}
+
+.node-root {
+  background-color: #3b82f6;
+  color: white;
 }

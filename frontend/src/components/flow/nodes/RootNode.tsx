@@ -9,7 +9,7 @@ interface RootNodeData {
 
 export const RootNode = memo(({ data }: NodeProps<RootNodeData>) => {
   return (
-    <div className="px-4 py-2 shadow-lg rounded-lg bg-blue-500 text-white border-2 border-blue-600 min-w-[180px]">
+    <div className="px-4 py-2 shadow-lg rounded-lg bg-blue-500 text-white border-2 border-blue-600 min-w-[180px] cursor-pointer hover:shadow-xl hover:translate-y-[-2px] transition-all">
       <div className="flex items-center">
         <div className="rounded-full bg-white p-1 mr-2">
           <svg
@@ -34,6 +34,23 @@ export const RootNode = memo(({ data }: NodeProps<RootNodeData>) => {
           {data.project.description}
         </div>
       )}
+      <div className="mt-2 flex items-center justify-center text-xs bg-blue-600 rounded-md py-1 px-2">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          className="h-3 w-3 mr-1"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+        Click for details
+      </div>
       <Handle
         type="source"
         position={Position.Bottom}
