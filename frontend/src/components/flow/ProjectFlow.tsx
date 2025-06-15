@@ -11,6 +11,7 @@ import ReactFlow, {
   NodeMouseHandler,
   ReactFlowInstance,
   BackgroundVariant,
+  MarkerType,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import "./flow.css";
@@ -55,9 +56,10 @@ const defaultViewport = { x: 0, y: 0, zoom: 0.6 };
 
 // Fit view options
 const fitViewOptions = {
-  padding: 0.8,
-  maxZoom: 0.6,
+  padding: 0.5,
+  includeHiddenNodes: true,
   minZoom: 0.4,
+  maxZoom: 0.6,
   duration: 800,
 };
 
@@ -117,11 +119,11 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
         if (features.length === 0) return;
 
         // Increase vertical spacing between levels
-        const yPosition = 150 + level * 200; // Increased from 150 to 200
+        const yPosition = 150 + level * 250; // Further increased from 200 to 250
 
         // Calculate width based on number of features at this level
         // Ensure minimum width per feature to prevent overcrowding
-        const minWidthPerFeature = 300; // Minimum width per feature
+        const minWidthPerFeature = 400; // Increased from 300 to 400
         const totalMinWidth = features.length * minWidthPerFeature;
         const availableWidth = xEnd - xStart;
 
@@ -204,8 +206,8 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
           );
 
           if (featureTests.length > 0) {
-            // Position test nodes to the right and stacked vertically
-            const baseX = xPosition + 400; // Fixed position to the right
+            // Position test nodes to the right with more spacing
+            const baseX = xPosition + 500; // Increased spacing to the right
             const baseY = yPosition; // Start at the same vertical position
 
             // Create a single test node that contains all tests for this feature
@@ -224,10 +226,6 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
               },
             };
 
-            console.log(
-              `Creating edge from feature ${featureId} to test node tests-${featureId}`
-            );
-
             // Create a direct edge from feature to test node with explicit handles
             const testEdge: Edge = {
               id: `edge-${featureId}-tests-${featureId}`,
@@ -235,13 +233,22 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
               target: `tests-${featureId}`,
               sourceHandle: "right",
               targetHandle: "left",
-              type: "smoothstep",
+              type: "bezier",
               animated: true,
               style: {
                 stroke: "#555",
-                strokeWidth: 2,
+                strokeWidth: 1.5,
               },
-              zIndex: 1000, // Ensure edge is above other elements
+              markerEnd: {
+                type: MarkerType.ArrowClosed,
+                width: 15,
+                height: 15,
+                color: "#555",
+              },
+              // Add curvature to the bezier curve
+              data: {
+                curvature: 0.5,
+              },
             };
 
             allNodes.push(testNode);
@@ -608,7 +615,9 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
     // Fit view with a slight padding and lower zoom level
     setTimeout(() => {
       instance.fitView(fitViewOptions);
-    }, 100);
+      // Center the view
+      instance.setCenter(0, 0, { duration: 800 });
+    }, 200); // Increased timeout to ensure nodes are properly positioned
   };
 
   return (
