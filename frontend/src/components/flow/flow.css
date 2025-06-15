@@ -23,6 +23,18 @@
   top: -4px;
 }
 
+.react-flow__handle-left {
+  left: -4px;
+}
+
+.react-flow__handle-right {
+  right: -4px;
+}
+
+.react-flow__edge {
+  z-index: 5;
+}
+
 .react-flow__edge-path {
   stroke: #b1b1b7;
   stroke-width: 1.5;

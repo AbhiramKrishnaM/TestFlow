@@ -67,13 +67,37 @@ export const SubFeatureNode: React.FC<SubFeatureNodeProps> = ({ data, id }) => {
       <Handle
         type="target"
         position={Position.Top}
-        style={{ background: "#fff", border: "1px solid #9333ea" }}
+        id="top"
+        style={{
+          background: "#fff",
+          border: "1px solid #9333ea",
+          width: "10px",
+          height: "10px",
+        }}
         isConnectable={true}
       />
       <Handle
         type="source"
         position={Position.Bottom}
-        style={{ background: "#fff", border: "1px solid #9333ea" }}
+        id="bottom"
+        style={{
+          background: "#fff",
+          border: "1px solid #9333ea",
+          width: "10px",
+          height: "10px",
+        }}
+        isConnectable={true}
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="right"
+        style={{
+          background: "#fff",
+          border: "1px solid #9333ea",
+          width: "10px",
+          height: "10px",
+        }}
         isConnectable={true}
       />
     </div>

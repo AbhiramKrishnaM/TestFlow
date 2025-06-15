@@ -213,7 +213,7 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
               id: `tests-${featureId}`,
               type: "testNode",
               data: {
-                label: `Tests (${featureTests.length})`,
+                label: `Test Cases (${featureTests.length})`,
                 test: featureTests[0], // Pass the first test for now
                 testCount: featureTests.length,
                 featureId: featureId, // Store the feature ID to use when clicked
@@ -224,15 +224,24 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
               },
             };
 
+            console.log(
+              `Creating edge from feature ${featureId} to test node tests-${featureId}`
+            );
+
+            // Create a direct edge from feature to test node with explicit handles
             const testEdge: Edge = {
               id: `edge-${featureId}-tests-${featureId}`,
               source: featureId,
               target: `tests-${featureId}`,
-              sourceHandle: null,
-              targetHandle: "left", // Always connect to the left side of test nodes
-              animated: false,
-              type: "straight", // Use straight lines for cleaner appearance
-              style: { stroke: "#b1b1b7", strokeWidth: 1.5 }, // Lighter, thinner line
+              sourceHandle: "right",
+              targetHandle: "left",
+              type: "smoothstep",
+              animated: true,
+              style: {
+                stroke: "#555",
+                strokeWidth: 2,
+              },
+              zIndex: 1000, // Ensure edge is above other elements
             };
 
             allNodes.push(testNode);
@@ -637,6 +646,8 @@ export const ProjectFlow: React.FC<ProjectFlowProps> = ({
           maxZoom={1.5}
           fitView
           fitViewOptions={fitViewOptions}
+          elementsSelectable={true}
+          deleteKeyCode={null}
         >
           <MiniMap />
           <Background

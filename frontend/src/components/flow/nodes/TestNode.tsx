@@ -50,13 +50,19 @@ export const TestNode = memo(({ data }: NodeProps<TestNodeData>) => {
         <div className="test-node-label">{data.label}</div>
         {showBlinkingDot && <div className="test-node-status"></div>}
       </div>
-      <div className="test-node-subtitle">Click to view tests</div>
+      <div className="test-node-subtitle">Click to view test cases</div>
 
       {/* Left handle for horizontal connections */}
       <Handle
         type="target"
         position={Position.Left}
-        style={{ background: "#fff", border: "1px solid #ddd" }}
+        id="left"
+        style={{
+          background: "#fff",
+          border: "1px solid #555",
+          width: "10px",
+          height: "10px",
+        }}
         isConnectable={true}
       />
 
@@ -64,16 +70,26 @@ export const TestNode = memo(({ data }: NodeProps<TestNodeData>) => {
       <Handle
         type="source"
         position={Position.Bottom}
-        style={{ background: "#fff", border: "1px solid #ddd" }}
-        isConnectable={true}
         id="bottom"
+        style={{
+          background: "#fff",
+          border: "1px solid #555",
+          width: "10px",
+          height: "10px",
+        }}
+        isConnectable={true}
       />
       <Handle
         type="target"
         position={Position.Top}
-        style={{ background: "#fff", border: "1px solid #ddd" }}
-        isConnectable={true}
         id="top"
+        style={{
+          background: "#fff",
+          border: "1px solid #555",
+          width: "10px",
+          height: "10px",
+        }}
+        isConnectable={true}
       />
     </div>
   );
